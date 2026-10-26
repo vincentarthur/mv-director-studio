@@ -1,0 +1,8 @@
+1. 输入测试需要：
+input_audio 输入音频
+input_image 若有两张图则为双人主角MV
+Prompt 用户输入提示词，若无prompt则不输入
+
+2. 参考效果：
+cover 原流程输出封面效果
+final_mv 原流程输出视频效果

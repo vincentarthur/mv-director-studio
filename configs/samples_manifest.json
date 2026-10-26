@@ -1,0 +1,459 @@
+[
+  {
+    "sample_id": "01",
+    "folder_id": "1s1SvWHIk9yfoV3ky44epU4cmnBgOeEK_",
+    "title": "Sample 01 — 双人悲伤浪漫 MV（男唱女哭 + 日夜转换）",
+    "language": "English",
+    "protagonist_mode": "dual",
+    "has_prompt": true,
+    "has_baseline_mv": true,
+    "stress_tags": [
+      "角色分工隔离(男唱女哭不张嘴)",
+      "细粒度妆造约束",
+      "日夜光影切换",
+      "禁止跳舞负向约束"
+    ],
+    "files": {
+      "cover.png": "1quFZVQoW1jY5Juec0pENPXto_t0yZwpn",
+      "final_mv.mp4": "1cq9BZvc3LO6DlY4CAsdmXmnmpi21MKdw",
+      "input_audio_01.mp3": "1rSA3-zl-b5cFzQvGJoCyuqYduB4q-eJn",
+      "input_image_01.jpeg": "1BfMTG6tl6TVjc8KQB0aET6yNTZnQjqqY",
+      "input_image_02.jpeg": "1Jmj8NrzwI7ps_JZjk9W_1_0Kf7sGKaz-",
+      "prompt.txt": "1hHuluzQUT16cr7l1fyif6DoPbvp0BCsx"
+    },
+    "audio_meta": {
+      "duration_sec": 240.1,
+      "duration_str": "04:00",
+      "sample_rate": 48000,
+      "channels": 2,
+      "bit_rate": 192119
+    },
+    "audio_url": "/api/media/01/input_audio_01.mp3",
+    "cover_url": "/api/media/01/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "1cq9BZvc3LO6DlY4CAsdmXmnmpi21MKdw",
+    "prompt_text": "Male costume sad romantic style. handsome look and attractive. female costume sad romantic style and beautiful and attractive and charming look. singing by only male character. female character 's role silent and crying with ears in her eyes. kajal in female character 's eyes. female character 's nails 1 inch long with nail polish. hair spread silky soft and silky long black. watch in her one wrist. beautiful picturisation in beautiful places and different places. beautiful choreography but no dance. night mode and day mode in picturisation. lights in night Time. correct colour combination.",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/01/input_image_01.jpeg",
+        "width": 540,
+        "height": 960,
+        "size_kb": 31.0
+      },
+      {
+        "filename": "input_image_02.jpeg",
+        "url": "/api/media/01/input_image_02.jpeg",
+        "width": 540,
+        "height": 1194,
+        "size_kb": 41.3
+      }
+    ]
+  },
+  {
+    "sample_id": "02",
+    "folder_id": "1YkD5RxCH9aMGckGM3gq3xQEKETQRmYAB",
+    "title": "Sample 02 — 日本武道馆抒情 Live（耳麦 + 终段副歌流泪高潮）",
+    "language": "Japanese",
+    "protagonist_mode": "single",
+    "has_prompt": true,
+    "has_baseline_mv": true,
+    "stress_tags": [
+      "曲式时间戳锚定(最後のサビ流泪)",
+      "耳挂式无线麦道具一致",
+      "舞台Live运镜"
+    ],
+    "files": {
+      "cover.png": "1IMJ3AOvuey4Fe9IMQ51HAeK3uiTP0Tfn",
+      "final_mv.mp4": "18mQ_lrU3VofPmMiwNGwlPaxcuQvw5u93",
+      "input_audio_01.mp3": "11W40EHqccHYSHK6-7bS5obD7aXZEUH_7",
+      "input_image_01.jpeg": "1SBSNnFB-IT6vyUd2hvZwzDHTbXaYqhRt",
+      "prompt.txt": "1QeGVChDj97ZVA9T9liG3dlkUa2e5HQTl"
+    },
+    "audio_meta": {
+      "duration_sec": 237.4,
+      "duration_str": "03:57",
+      "sample_rate": 44100,
+      "channels": 2,
+      "bit_rate": 192063
+    },
+    "audio_url": "/api/media/02/input_audio_01.mp3",
+    "cover_url": "/api/media/02/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "18mQ_lrU3VofPmMiwNGwlPaxcuQvw5u93",
+    "prompt_text": "初めての日本武道館のLive映像、バラード曲を最初から最後まで耳掛け式ワイヤレスイヤホンマイクを使用して歌う、画像通りの衣装、最後のサビから終わりまで感極まり涙を流しながら歌う",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/02/input_image_01.jpeg",
+        "width": 768,
+        "height": 1025,
+        "size_kb": 45.2
+      }
+    ]
+  },
+  {
+    "sample_id": "03",
+    "folder_id": "1thJfVzqQS3daxphLaGMt48fZJgi5jJCd",
+    "title": "Sample 03 — Afrobeats 舞池律动《Let Your Body Talk》（对唱 + 8小节纯舞段）",
+    "language": "English",
+    "protagonist_mode": "single",
+    "has_prompt": true,
+    "has_baseline_mv": false,
+    "stress_tags": [
+      "精细曲式切分(8小节打击乐Dance Break)",
+      "主唱与伴唱一唱一和(Call & Response)",
+      "110 BPM 律动踩点"
+    ],
+    "files": {
+      "cover.png": "14_gfchxIvTX9DaY592TTW1a4mg4882PX",
+      "input_audio_01.mp3": "17CQ2QkF7xnXf7jPeCCeDr_S95lZtMU-w",
+      "input_image_01.jpeg": "1SDCClEVMDjdFfzAiV4tD5HmVVkLxL4KV",
+      "prompt.txt": "1bxwrI2spXqPQtIp5G4Xbjji1eeKBn1QA"
+    },
+    "audio_meta": {
+      "duration_sec": 221.19,
+      "duration_str": "03:41",
+      "sample_rate": 44100,
+      "channels": 2,
+      "bit_rate": 192059
+    },
+    "audio_url": "/api/media/03/input_audio_01.mp3",
+    "cover_url": "/api/media/03/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "",
+    "prompt_text": "Create an original Afrobeats song titled “Let Your Body Talk,” around 2:30 long. Zuri sings with a warm, soulful female voice, playful confidence, and flirty energy. Natural English vocals with female call-and-response backing harmonies.\n\nStyle: An irresistible dance groove at 110 BPM with prominent layered percussion: rolling hand drums, congas, shakers, crisp rim clicks, and syncopated kicks. Add bouncy bass, rhythmic guitar, warm keyboards, and bright brass accents.\n\nLyrics: Zuri invites someone watching from the edge of the dance floor to join her. Celebrate chemistry, freedom, and letting movement say what words cannot. Joyful and sensual, with golden lights and warm night air.\n\nChorus hook: “Let your body talk,” answered by “I’m listening.” Simple, catchy lines with room for percussion fills.\n\nStructure: Short drum intro, verse, chorus, second verse, chorus, eight-bar percussion dance break, final chorus, and a playful vocal tag with a crisp drum finish.",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/03/input_image_01.jpeg",
+        "width": 1021,
+        "height": 1125,
+        "size_kb": 226.4
+      }
+    ]
+  },
+  {
+    "sample_id": "04",
+    "folder_id": "1zLuAtbmJDhmFb5JTxL4PYj7t1OrfWhN0",
+    "title": "Sample 04 — 双人无提示词自主叙事 MV (Zero-Prompt Dual #1)",
+    "language": "Auto-Detect",
+    "protagonist_mode": "dual",
+    "has_prompt": false,
+    "has_baseline_mv": true,
+    "stress_tags": [
+      "Zero-Prompt无提示词脑暴",
+      "纯音频情绪+双人图推导关系",
+      "含原片A/B对比"
+    ],
+    "files": {
+      "cover.png": "1jn_XlHG8p5f2CX8QdRYX4gDS9Hu7Qdpy",
+      "final_mv.mp4": "15Hu-EOARWECFZCyaaiEL1k-d84mQqriS",
+      "input_audio_01.mp3": "15nWBSwysawzeJDnqShdo0dzxdQVePXMt",
+      "input_image_01.jpeg": "1NU2UK_-nkSKSNjImjZ8HHI1NGO1lzaZj",
+      "input_image_02.jpeg": "1IB3o-pa02Pjjppcr6a2rzS6uH1D2ZnXt"
+    },
+    "audio_meta": {
+      "duration_sec": 223.39,
+      "duration_str": "03:43",
+      "sample_rate": 32000,
+      "channels": 2,
+      "bit_rate": 192088
+    },
+    "audio_url": "/api/media/04/input_audio_01.mp3",
+    "cover_url": "/api/media/04/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "15Hu-EOARWECFZCyaaiEL1k-d84mQqriS",
+    "prompt_text": "",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/04/input_image_01.jpeg",
+        "width": 1204,
+        "height": 1393,
+        "size_kb": 280.3
+      },
+      {
+        "filename": "input_image_02.jpeg",
+        "url": "/api/media/04/input_image_02.jpeg",
+        "width": 1644,
+        "height": 1606,
+        "size_kb": 485.8
+      }
+    ]
+  },
+  {
+    "sample_id": "05",
+    "folder_id": "1EeUn76eqXFsMDOvoncoFsByfXO-rSQCX",
+    "title": "Sample 05 — 双人无提示词自主叙事 MV (Zero-Prompt Dual #2)",
+    "language": "Auto-Detect",
+    "protagonist_mode": "dual",
+    "has_prompt": false,
+    "has_baseline_mv": false,
+    "stress_tags": [
+      "Zero-Prompt无提示词脑暴",
+      "双人情感互动与声部匹配",
+      "无原片纯正向规划"
+    ],
+    "files": {
+      "cover.png": "1CEKx1ZMEM5zM4y4-9iFhNKBfK1iijRt4",
+      "input_audio_01.mp3": "1qWYONgLtRCvEdLERWWmNRFty9uYQC_k_",
+      "input_image_01.jpeg": "1tEJ8DaEr_DqMTa50SMisT-Ih3jR_aZWO",
+      "input_image_02.jpeg": "1teDd6inpQ7xu5cFEABntnGhCtlYB4kcG"
+    },
+    "audio_meta": {
+      "duration_sec": 211.32,
+      "duration_str": "03:31",
+      "sample_rate": 48000,
+      "channels": 2,
+      "bit_rate": 192121
+    },
+    "audio_url": "/api/media/05/input_audio_01.mp3",
+    "cover_url": "/api/media/05/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "",
+    "prompt_text": "",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/05/input_image_01.jpeg",
+        "width": 1023,
+        "height": 1537,
+        "size_kb": 298.2
+      },
+      {
+        "filename": "input_image_02.jpeg",
+        "url": "/api/media/05/input_image_02.jpeg",
+        "width": 1024,
+        "height": 1536,
+        "size_kb": 442.6
+      }
+    ]
+  },
+  {
+    "sample_id": "06",
+    "folder_id": "17X59qJAy9DggHSZ_BbI7rZV99nIyy4ii",
+    "title": "Sample 06 — 巴西 Sertanejo 夜景码头木吉他弹唱",
+    "language": "Portuguese",
+    "protagonist_mode": "single",
+    "has_prompt": true,
+    "has_baseline_mv": true,
+    "stress_tags": [
+      "乐器演奏物理可信度(吉他手部特写)",
+      "面部/手部/码头全景三景别交替",
+      "人物外观强锁定"
+    ],
+    "files": {
+      "cover.png": "1HMlaTcYQngAwyrlGMMWLU5OoX9yVtJNr",
+      "final_mv.mp4": "1ALhGdBpN4ktt9EFtvdjcaK-tZAIftRlF",
+      "input_audio_01.mp3": "1PL4Dl-ekC08AjhJ4FkPdVLD8uD-Xzr_3",
+      "input_image_01.jpeg": "1xGCz3ZIygiu2CjgQgv3a1DZisaPMxwTa",
+      "prompt.txt": "1H4X2SDrAfKwlMjYAnXcS7c_uWoNlx54q"
+    },
+    "audio_meta": {
+      "duration_sec": 255.65,
+      "duration_str": "04:16",
+      "sample_rate": 48000,
+      "channels": 2,
+      "bit_rate": 192135
+    },
+    "audio_url": "/api/media/06/input_audio_01.mp3",
+    "cover_url": "/api/media/06/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "1ALhGdBpN4ktt9EFtvdjcaK-tZAIftRlF",
+    "prompt_text": "Videoclipe sertanejo romântico, cinematográfico, em 4K, formato 16:9.\n\nUm homem elegante e apaixonado está sentado em um píer luxuoso, todo iluminado por luzes douradas, tocando um violão de luxo à noite. Ao fundo, o mar tranquilo reflete as luzes, com barcos iluminados e uma linda lua no céu.\n\nManter exatamente o mesmo homem da imagem original da capa, preservando seu rosto, cabelo, barba, roupa preta, aparência física e violão. Não substituir, modificar ou criar outro personagem.\n\nA câmera realiza movimentos suaves e cinematográficos, alternando entre closes no rosto, nas mãos tocando o violão e tomadas abertas do píer iluminado. O homem interpreta a música com emoção e romantismo, transmitindo amor e saudade.\n\nO mesmo homem deve aparecer do início ao fim do vídeo, com total consistência visual, sem mudanças de personagem, cenário ou estilo.",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/06/input_image_01.jpeg",
+        "width": 1672,
+        "height": 941,
+        "size_kb": 469.4
+      }
+    ]
+  },
+  {
+    "sample_id": "07",
+    "folder_id": "102r9B4TOfTE6eMjybCuR47rPv50Khog-",
+    "title": "Sample 07 — 阿肯色州说唱《4 Da A》（词级城市名时间戳实时切镜）",
+    "language": "English",
+    "protagonist_mode": "dual",
+    "has_prompt": true,
+    "has_baseline_mv": false,
+    "stress_tags": [
+      "词级(Word-level)地名时间戳识别",
+      "随说唱词切换城市画面与文字路牌",
+      "主歌1与主歌2视觉逻辑切换"
+    ],
+    "files": {
+      "cover.png": "1Y8SP1W4rFtOocUbOTXFfj8cJMg9z32gw",
+      "input_audio_01.mp3": "1iW6c8HMytCFQEx4xZCV9GZPD9iiUReJQ",
+      "input_image_01.jpeg": "16WHyJtCiiYW8njNxQxSu_71lZpSsEXaS",
+      "input_image_02.jpeg": "1jS5M0d7bT8vJjdwWo9I1wVAuI4PVItmj",
+      "prompt.txt": "1kYNB2NOuVOTogy-CdKabJm44t_bbeRCc"
+    },
+    "audio_meta": {
+      "duration_sec": 197.77,
+      "duration_str": "03:18",
+      "sample_rate": 44100,
+      "channels": 2,
+      "bit_rate": 192064
+    },
+    "audio_url": "/api/media/07/input_audio_01.mp3",
+    "cover_url": "/api/media/07/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "",
+    "prompt_text": "when this son6 comes on have it say in the sky welcome to Arkansas Pine Bluff City South Ballar brings to you 4 Da A then when I start wrapping the song and saying the city names have the scenes flipping from City to City with all the names showing that I'm saying and as you show City to City show a group of guys like they are rappers in every city that I name and on the second verse just show me rapping and a bunch of different clips of Arkansas signs some say Pine Bluff Arkansas some say p23 some say PBC and and some signs that say home of the Lion's just make this about all the cities in Arkansas all the towns in Arkansas have it flipping scenes have me in a black hat that say South Ballar little black t-shirt that say Arkansas Pine Bluff and on my pants have Pine Bluff going down the pants leg make this video All about Arkansas and show clips of the Arkansas razorbacks",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/07/input_image_01.jpeg",
+        "width": 1504,
+        "height": 1491,
+        "size_kb": 180.8
+      },
+      {
+        "filename": "input_image_02.jpeg",
+        "url": "/api/media/07/input_image_02.jpeg",
+        "width": 1792,
+        "height": 1920,
+        "size_kb": 390.8
+      }
+    ]
+  },
+  {
+    "sample_id": "08",
+    "folder_id": "1cDvi0Yv7AAZMecoGyZsl7E2GxAeVRqx7",
+    "title": "Sample 08 — 北海岸岩石雷鬼 Rasta 氛围 MV",
+    "language": "English",
+    "protagonist_mode": "single",
+    "has_prompt": true,
+    "has_baseline_mv": true,
+    "stress_tags": [
+      "极简弱提示词(15词)叙事扩写",
+      "雷鬼反拍松弛律动",
+      "自然海景光影层次"
+    ],
+    "files": {
+      "cover.png": "1zrjp6j25X4veHW81sL-JWiMRNQzCTAJP",
+      "final_mv.mp4": "1VFc4yEv5wVq0B1En5CUf-u31QOfYbaMl",
+      "input_audio_01.mp3": "1tg7Cpy7d_S92MAbWdzfeEbMhaKziQuAZ",
+      "input_image_01.jpeg": "1W_E5aRtPuUxWKttzMFx7NCRHKcGYq-D0",
+      "prompt.txt": "1AGySeA-Cd_TErmJhNTsopw-TiUhavW0V"
+    },
+    "audio_meta": {
+      "duration_sec": 206.57,
+      "duration_str": "03:27",
+      "sample_rate": 48000,
+      "channels": 2,
+      "bit_rate": 192052
+    },
+    "audio_url": "/api/media/08/input_audio_01.mp3",
+    "cover_url": "/api/media/08/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "1VFc4yEv5wVq0B1En5CUf-u31QOfYbaMl",
+    "prompt_text": "reggae rasta mix native on the north coast of rhe island cool breeze sitting relacing on a rock stone",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/08/input_image_01.jpeg",
+        "width": 478,
+        "height": 850,
+        "size_kb": 149.9
+      }
+    ]
+  },
+  {
+    "sample_id": "09",
+    "folder_id": "1YERqh3HhJdg79xoIQa-RdztxagkxtkzQ",
+    "title": "Sample 09 — 单人无提示词长曲自主叙事 MV (Zero-Prompt Single)",
+    "language": "Auto-Detect",
+    "protagonist_mode": "single",
+    "has_prompt": false,
+    "has_baseline_mv": true,
+    "stress_tags": [
+      "Zero-Prompt单人自主叙事",
+      "长音频段落抗视觉疲劳编排",
+      "含原片A/B对比"
+    ],
+    "files": {
+      "cover.png": "1wyOIgctlclkcZPKdHkbqr0zrRCn5XXJR",
+      "final_mv.mp4": "1woQwr-CyIyRAd0VZgn_dJBwDBIjPQX2o",
+      "input_audio_01.mp3": "1Lyaqv8hwWo_SOdyrL9du9xiIT2H3MiQK",
+      "input_image_01.jpeg": "12aBhSP-TpapNNu8NGikhhCGqFaW3RgsR"
+    },
+    "audio_meta": {
+      "duration_sec": 291.1,
+      "duration_str": "04:51",
+      "sample_rate": 48000,
+      "channels": 2,
+      "bit_rate": 192033
+    },
+    "audio_url": "/api/media/09/input_audio_01.mp3",
+    "cover_url": "/api/media/09/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "1woQwr-CyIyRAd0VZgn_dJBwDBIjPQX2o",
+    "prompt_text": "",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/09/input_image_01.jpeg",
+        "width": 900,
+        "height": 1600,
+        "size_kb": 126.4
+      }
+    ]
+  },
+  {
+    "sample_id": "10",
+    "folder_id": "1K5-mTk1PRLADckx5W1fHIEkGgykOAU50",
+    "title": "Sample 10 — 光影男歌手与聚光灯现代舞女平行蒙太奇",
+    "language": "English",
+    "protagonist_mode": "single_img_dual_role",
+    "has_prompt": true,
+    "has_baseline_mv": true,
+    "stress_tags": [
+      "平行时空交叉剪辑(Intercutting)",
+      "单张参考图派生双角色设定",
+      "负向约束(男歌手严禁跳舞)"
+    ],
+    "files": {
+      "cover.png": "1TF7njLn07KugX4sSC-6jF9z4yB98tjx6",
+      "final_mv.mp4": "1IAzM_JOnlFA4r8YDa8SbmwnRCjxCF_DQ",
+      "input_audio_01.mp3": "1B6LcTxdYig4Qn24NDd2TTQqtWpiJfjXo",
+      "input_image_01.jpeg": "1FvivOlerZHoKLKl92lwxoiMkjPkc2_mN",
+      "prompt.txt": "1csEFyLo4B9VlNMWYbM3tXLGbuwz9ocTW"
+    },
+    "audio_meta": {
+      "duration_sec": 183.37,
+      "duration_str": "03:03",
+      "sample_rate": 48000,
+      "channels": 2,
+      "bit_rate": 192065
+    },
+    "audio_url": "/api/media/10/input_audio_01.mp3",
+    "cover_url": "/api/media/10/cover.png",
+    "final_mv_local": false,
+    "final_mv_url": "",
+    "final_mv_drive_id": "1IAzM_JOnlFA4r8YDa8SbmwnRCjxCF_DQ",
+    "prompt_text": "The guy sings Where there are only light shocks, at the same time, there is a girl in a dark place with only a spotlight on her, who is dancing a modern dance to the song. The singer does not dance!",
+    "images": [
+      {
+        "filename": "input_image_01.jpeg",
+        "url": "/api/media/10/input_image_01.jpeg",
+        "width": 941,
+        "height": 1672,
+        "size_kb": 319.7
+      }
+    ]
+  }
+]

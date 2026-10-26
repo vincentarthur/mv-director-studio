@@ -1,0 +1,3028 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MV 全流程多模型评测、Prompt 调优、Storyline 创作与 MV 全链路生成工作台 V2.3.1</title>
+  <style>
+    :root {
+      --bg: #0b0e17;
+      --panel: #131826;
+      --panel2: #1a2133;
+      --border: #2a3450;
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --cyan: #06b6d4;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    header {
+      background: linear-gradient(90deg, #111827 0%, #1e1b4b 50%, #0f172a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.14);
+    }
+    .badge-indigo { background: rgba(99,102,241,0.18); color: #a5b4fc; border-color: rgba(99,102,241,0.4); }
+    .badge-emerald { background: rgba(16,185,129,0.16); color: #6ee7b7; border-color: rgba(16,185,129,0.4); }
+    .badge-amber { background: rgba(245,158,11,0.16); color: #fcd34d; border-color: rgba(245,158,11,0.4); }
+    .badge-cyan { background: rgba(6,182,212,0.16); color: #67e8f9; border-color: rgba(6,182,212,0.4); }
+    .badge-rose { background: rgba(244,63,94,0.16); color: #fda4af; border-color: rgba(244,63,94,0.4); }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 20px 0 20px;
+      background: #0e1320;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .nav-tab {
+      padding: 9px 14px;
+      border-radius: 8px 8px 0 0;
+      border: 1px solid transparent;
+      border-bottom: none;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 12.5px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .nav-tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-tab.active {
+      background: var(--panel);
+      color: #fff;
+      border-color: var(--border);
+      box-shadow: inset 0 2px 0 var(--accent);
+    }
+
+    .container { padding: 18px 20px 48px 20px; max-width: 1640px; margin: 0 auto; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 15px 18px;
+      margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card-title { font-size: 14.5px; font-weight: 700; color: #f8fafc; margin: 0; }
+    .btn {
+      padding: 7px 13px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn:hover { filter: brightness(1.12); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); border-color: #6366f1; color: #fff; }
+    .btn-emerald { background: linear-gradient(135deg, #059669, #10b981); border-color: #10b981; color: #fff; }
+    .btn-amber { background: linear-gradient(135deg, #d97706, #f59e0b); border-color: #f59e0b; color: #111827; font-weight: 700; }
+    .btn-cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); border-color: #06b6d4; color: #082f49; font-weight: 700; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 1100px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background: #0f1523;
+      color: #cbd5e1;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+    }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    textarea, input[type="text"], input[type="number"], input[type="password"], select {
+      background: #090d16;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      width: 100%;
+    }
+    .progress-bar-wrap {
+      width: 100%;
+      height: 8px;
+      background: #090d16;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 8px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #10b981);
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    .score-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .score-high { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4); }
+    .score-mid  { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); }
+    .score-low  { background: rgba(244,63,94,0.2); color: #fb7185; border: 1px solid rgba(244,63,94,0.4); }
+
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 18, 0.78);
+      z-index: 100;
+      display: none;
+      justify-content: flex-end;
+    }
+    .drawer-overlay.open { display: flex; }
+    .drawer {
+      width: min(1140px, 95vw);
+      height: 100vh;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      padding: 20px;
+      overflow-y: auto;
+    }
+    pre {
+      background: #080b12;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      font-size: 11.5px;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 360px;
+    }
+    .metric-box {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .metric-label { font-size: 11.5px; color: var(--muted); }
+    .metric-val { font-size: 21px; font-weight: 800; margin-top: 4px; }
+    .cfg-summary-bar {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .prompt-subtabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .prompt-subtab {
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: #0c1220;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .prompt-subtab.active {
+      background: rgba(99, 102, 241, 0.22);
+      color: #fff;
+      border-color: #6366f1;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand-title">
+      <span>🎬 MV 多模态评测、Prompt 调优、Storyline 创作与 MV 生成工坊 V2.3.1</span>
+      <span class="badge badge-indigo" id="hdr-project-badge">Project: genai-dnb-demo</span>
+      <span class="badge badge-emerald">All Prompts & Per-Tab Models Configurable</span>
+      <span class="badge badge-cyan">持久化 & Reload 审阅</span>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button class="btn" onclick="openDebugLogsDrawer()" style="border-color:#f59e0b; color:#fcd34d; background:rgba(245,158,11,0.12);">🐛 运行日志与环境诊断 (Debug Logs)</button>
+      <button class="btn" onclick="switchTab('tab-settings')" style="border-color:#6366f1; color:#a5b4fc;">⚙️ 项目/模型/全量Prompt配置</button>
+      <button class="btn" onclick="reloadFromDisk()">🔄 Reload from Disk (从磁盘重载结果)</button>
+      <button class="btn btn-emerald" onclick="quickSaveSnapshot()">💾 保存快照 (Save Snapshot)</button>
+      <a class="btn" href="/api/v2/export_bundle" target="_blank" style="text-decoration:none;">⬇️ 导出全量 JSON</a>
+    </div>
+  </header>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('tab-step1', this)">⚡ 1. 原Prompt基线: Gemini 3.8 Flash</button>
+    <button class="nav-tab" onclick="switchTab('tab-step2', this)">🧠 2. 原Prompt基线: Gemini 4 Argon (Medium)</button>
+    <button class="nav-tab" onclick="switchTab('tab-step3', this)">✨ 3. Gemini 4 Argon 提示词优化器 (含Why解析)</button>
+    <button class="nav-tab" onclick="switchTab('tab-step4', this)">🚀 4. 优化后Prompt评测 (可选 3.8 / 4 Argon)</button>
+    <button class="nav-tab" onclick="switchTab('tab-storyline', this)" style="border-color:rgba(16,185,129,0.45); color:#6ee7b7;">🎬 5. MV Storyline 创作与词曲对比评测 (V2.2)</button>
+    <button class="nav-tab" onclick="switchTab('tab-mv-studio', this)" style="border-color:rgba(168,85,247,0.55); color:#d8b4fe;">🎥 6. MV 全链路自动生成工坊 (分镜规划/口型节奏/字幕合并) (V2.3.1)</button>
+    <button class="nav-tab" onclick="switchTab('tab-step5', this)">📊 7. 全链路横向对比大盘 & 持久化快照</button>
+    <button class="nav-tab" onclick="switchTab('tab-settings', this)">⚙️ 8. 项目/模型参数与全量 Prompt 配置中心</button>
+  </div>
+
+  <div class="container">
+    <!-- TAB 1: STEP 1 GEMINI 3.8 FLASH -->
+    <div id="tab-step1" class="tab-pane active">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Step 1 — 提示词不作修改：Gemini 3.8 Flash 全量素材并行分析 + 《MV评判规则》打分</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              依据《音频理解-提示词.txt》与《MV测试集说明.txt》，对 01–10 样本并行分析并按《MV评判规则.md》(3 层 13 维度) 自动打分。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="font-size:12px; color:var(--muted);">并行度:</label>
+            <select id="workers-s1" style="width:75px;">
+              <option value="2">2 线程</option>
+              <option value="4" selected>4 线程</option>
+              <option value="5">5 线程</option>
+              <option value="10">10 线程</option>
+            </select>
+            <button class="btn btn-primary" onclick="runTrack('step1_flash_raw', '', 'workers-s1', 'prog-s1', false)">
+              ▶️ 并行运行全部 10 首样本
+            </button>
+            <button class="btn" onclick="runTrack('step1_flash_raw', '', 'workers-s1', 'prog-s1', true)">
+              ♻️ 强制重跑全部
+            </button>
+          </div>
+        </div>
+        <div class="cfg-summary-bar">
+          <div id="cfg-pill-tab1">当前 Tab #1 模型配置加载中...</div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn" onclick="openConfigForRole('tab1_baseline', 'original_audio_prompt')">⚙️ 修改本 Tab 模型 / 原版提示词配置</button>
+          </div>
+        </div>
+        <div id="prog-s1" style="display:none; margin-bottom:12px; background:#0d1322; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;">
+            <span id="prog-s1-text" style="font-weight:600; color:#e2e8f0; word-break:break-word;">正在并行执行...</span>
+            <span id="prog-s1-pct" style="white-space:nowrap; color:#6ee7b7; font-weight:700;">0%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-s1-bar"></div></div>
+          <details open style="margin-top:8px;">
+            <summary style="cursor:pointer; font-size:11.5px; color:#fcd34d; font-weight:600;">📜 实时执行日志流 (Live Execution & Error Trace)</summary>
+            <pre id="prog-s1-logs" style="margin-top:6px; max-height:180px; font-size:11px; line-height:1.45; background:#060911; color:#cbd5e1;"></pre>
+          </details>
+        </div>
+        <div class="grid-4" id="summary-s1" style="margin-bottom:12px;"></div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>样本</th>
+                <th>测试集曲目 / 说明</th>
+                <th>素材清单 (音频/图)</th>
+                <th>执行状态 & 模型</th>
+                <th>总分 (100)</th>
+                <th>L1 质量与稳定性 (4维)</th>
+                <th>L2 音乐与内容表达 (4维)</th>
+                <th>L3 审美与记忆点 (5维)</th>
+                <th>耗时</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-step1_flash_raw"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: STEP 2 GEMINI 4 ARGON (MEDIUM) -->
+    <div id="tab-step2" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Step 2 — 提示词不作修改：Gemini 4 Argon (thinking_level = MEDIUM) 全量并行分析 + 打分</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              保持与 Step 1 完全一致的原版提示词，切换模型与推理参数（默认 <code>gemini-4-argon</code>, <code>thinking_level="MEDIUM"</code>）并行评测。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="font-size:12px; color:var(--muted);">并行度:</label>
+            <select id="workers-s2" style="width:75px;">
+              <option value="2">2 线程</option>
+              <option value="4" selected>4 线程</option>
+              <option value="5">5 线程</option>
+              <option value="10">10 线程</option>
+            </select>
+            <button class="btn btn-primary" onclick="runTrack('step2_argon_raw', '', 'workers-s2', 'prog-s2', false)">
+              ▶️ 并行运行全部 10 首样本 (Argon Medium)
+            </button>
+            <button class="btn" onclick="runTrack('step2_argon_raw', '', 'workers-s2', 'prog-s2', true)">
+              ♻️ 强制重跑全部
+            </button>
+          </div>
+        </div>
+        <div class="cfg-summary-bar">
+          <div id="cfg-pill-tab2">当前 Tab #2 模型配置加载中...</div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn" onclick="openConfigForRole('tab2_argon_baseline', 'original_audio_prompt')">⚙️ 修改本 Tab 模型 / Thinking Level / 提示词</button>
+          </div>
+        </div>
+        <div id="prog-s2" style="display:none; margin-bottom:12px; background:#0d1322; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;">
+            <span id="prog-s2-text" style="font-weight:600; color:#e2e8f0; word-break:break-word;">正在并行执行...</span>
+            <span id="prog-s2-pct" style="white-space:nowrap; color:#6ee7b7; font-weight:700;">0%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-s2-bar"></div></div>
+          <details open style="margin-top:8px;">
+            <summary style="cursor:pointer; font-size:11.5px; color:#fcd34d; font-weight:600;">📜 实时执行日志流 (Live Execution & Error Trace)</summary>
+            <pre id="prog-s2-logs" style="margin-top:6px; max-height:180px; font-size:11px; line-height:1.45; background:#060911; color:#cbd5e1;"></pre>
+          </details>
+        </div>
+        <div class="grid-4" id="summary-s2" style="margin-bottom:12px;"></div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>样本</th>
+                <th>测试集曲目 / 说明</th>
+                <th>素材清单 (音频/图)</th>
+                <th>执行状态 & 模型</th>
+                <th>总分 (100)</th>
+                <th>L1 质量与稳定性 (4维)</th>
+                <th>L2 音乐与内容表达 (4维)</th>
+                <th>L3 审美与记忆点 (5维)</th>
+                <th>耗时</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-step2_argon_raw"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: STEP 3 PROMPT OPTIMIZER -->
+    <div id="tab-step3" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Step 3 — 使用 Gemini 4 Argon 优化提示词（支持手动编辑优化后 Prompt & 优化器 Meta-Prompt）</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              既可调用 <code>gemini-4-argon</code> 自动生成优化版提示词与 Why 解释，也可直接在下方编辑保存「Gemini 优化后的提示词」用于 Step 4 测试。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" onclick="openConfigForRole('tab3_prompt_optimizer', 'prompt_optimizer_meta_prompt')">⚙️ 配置优化器模型与 Meta-Prompt</button>
+            <button class="btn btn-amber" id="btn-opt-prompt" onclick="triggerPromptOptimization()">
+              ✨ 调用 Gemini 4 Argon 重新生成优化版 Prompt & Why 分析
+            </button>
+            <button class="btn btn-emerald" onclick="saveEditedOptimizedPrompt()">
+              💾 保存当前优化后 Prompt (同步至全局配置与 Step 4)
+            </button>
+          </div>
+        </div>
+        <div class="cfg-summary-bar">
+          <div id="cfg-pill-tab3">当前 Tab #3 优化器模型配置加载中...</div>
+          <span class="badge badge-emerald" id="opt-source-badge">状态: 已就绪</span>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:14px;">
+          <div>
+            <div style="font-weight:700; margin-bottom:6px; color:#94a3b8; display:flex; justify-content:space-between; align-items:center;">
+              <span>📜 原版《音频理解-提示词.txt》(测试 #1 & #2 使用，可直接修改并保存)</span>
+              <button class="btn" style="padding:3px 8px; font-size:11px;" onclick="saveOriginalPromptFromTab3()">💾 保存原版 Prompt</button>
+            </div>
+            <textarea id="raw-prompt-box" rows="16"></textarea>
+          </div>
+          <div>
+            <div style="font-weight:700; margin-bottom:6px; color:#6ee7b7; display:flex; justify-content:space-between; align-items:center;">
+              <span>🚀 Gemini 优化后的提示词 (测试 #4 实际使用，完全可编辑)</span>
+              <button class="btn btn-emerald" style="padding:3px 8px; font-size:11px;" onclick="saveEditedOptimizedPrompt()">💾 保存优化后 Prompt</button>
+            </div>
+            <textarea id="opt-prompt-box" rows="16"></textarea>
+          </div>
+        </div>
+
+        <div class="card" style="background:var(--panel2); margin-bottom:0;">
+          <h3 class="card-title" style="margin-bottom:10px;">💡 为什么要这样优化？(Gemini 4 Argon 针对原 Prompt 缺陷、Gemini 特性与《MV评判规则》的逐条解释)</h3>
+          <div id="opt-summary-banner" style="padding:10px 12px; background:#0d1322; border-left:3px solid var(--accent); border-radius:6px; margin-bottom:12px; font-size:12.5px;"></div>
+          <div class="grid-3" style="margin-bottom:12px;">
+            <div class="metric-box">
+              <div class="metric-label">🔍 原提示词在 MV 场景下的核心局限</div>
+              <ul id="opt-weaknesses" style="margin:6px 0 0 0; padding-left:18px; font-size:12px;"></ul>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">🧠 针对 Gemini 多模态特性的专项适配</div>
+              <ul id="opt-adaptations" style="margin:6px 0 0 0; padding-left:18px; font-size:12px;"></ul>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">🎯 原 Prompt 核心意图保留清单</div>
+              <ul id="opt-preserved" style="margin:6px 0 0 0; padding-left:18px; font-size:12px;"></ul>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:18%;">优化模块</th>
+                <th style="width:26%;">原 Prompt 写法 / 缺失点</th>
+                <th style="width:28%;">优化后改动方案</th>
+                <th style="width:28%;">为什么这样改 (Why & 对应《MV评判规则》维度)</th>
+              </tr>
+            </thead>
+            <tbody id="opt-rationale-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: STEP 4 OPTIMIZED PROMPT EVALUATION -->
+    <div id="tab-step4" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Step 4 — 使用「优化后的提示词」进行测试（支持任选模型 A / 模型 B 或双通道并行对比）</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              使用 Step 3 / 配置中心中的「优化后提示词 (`optimized_prompt`)」对测试集样本并行推理，并按《MV评判规则.md》打分。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label style="font-size:12px; color:var(--muted);">选择测试模型通道:</label>
+            <select id="step4-model-select" style="width:280px;" onchange="switchStep4View()">
+              <option value="step4_opt_flash">通道 A (默认 Gemini 3.8 Flash + 优化后Prompt)</option>
+              <option value="step4_opt_argon">通道 B (默认 Gemini 4 Argon Medium + 优化后Prompt)</option>
+            </select>
+            <label style="font-size:12px; color:var(--muted);">并行度:</label>
+            <select id="workers-s4" style="width:75px;">
+              <option value="2">2 线程</option>
+              <option value="4" selected>4 线程</option>
+              <option value="5">5 线程</option>
+              <option value="10">10 线程</option>
+            </select>
+            <button class="btn btn-primary" onclick="runSelectedStep4(false)">
+              ▶️ 运行当前选中通道 (10首并行)
+            </button>
+            <button class="btn btn-cyan" onclick="runBothStep4()">
+              ⚡ 同时运行 通道 A + 通道 B
+            </button>
+            <button class="btn" onclick="runSelectedStep4(true)">
+              ♻️ 强制重跑当前通道
+            </button>
+          </div>
+        </div>
+        <div class="cfg-summary-bar">
+          <div id="cfg-pill-tab4">当前 Tab #4 模型配置加载中...</div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn" onclick="openConfigForRole('tab4_opt_model_a', 'optimized_prompt')">⚙️ 修改通道 A/B 模型参数或优化后 Prompt</button>
+          </div>
+        </div>
+        <div id="prog-s4" style="display:none; margin-bottom:12px; background:#0d1322; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;">
+            <span id="prog-s4-text" style="font-weight:600; color:#e2e8f0; word-break:break-word;">正在并行执行...</span>
+            <span id="prog-s4-pct" style="white-space:nowrap; color:#6ee7b7; font-weight:700;">0%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-s4-bar"></div></div>
+          <details open style="margin-top:8px;">
+            <summary style="cursor:pointer; font-size:11.5px; color:#fcd34d; font-weight:600;">📜 实时执行日志流 (Live Execution & Error Trace)</summary>
+            <pre id="prog-s4-logs" style="margin-top:6px; max-height:180px; font-size:11px; line-height:1.45; background:#060911; color:#cbd5e1;"></pre>
+          </details>
+        </div>
+        <div class="grid-4" id="summary-s4" style="margin-bottom:12px;"></div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>样本</th>
+                <th>测试集曲目 / 说明</th>
+                <th>素材清单 (音频/图)</th>
+                <th>执行状态 & 模型</th>
+                <th>总分 (100)</th>
+                <th>相比同模型原Prompt提升</th>
+                <th>L1 质量与稳定性 (4维)</th>
+                <th>L2 音乐与内容表达 (4维)</th>
+                <th>L3 审美与记忆点 (5维)</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-step4"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB STORYLINE (V2.2 NEW): MV STORYLINE GENERATION & SONG ALIGNMENT EVALUATION -->
+    <div id="tab-storyline" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">🎬 Step 5 (V2.2 新增) — 基于歌词、旋律与情绪理解的 MV Storyline 创作 + 原歌曲对比打分与优化诊断</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:4px; line-height:1.5;">
+              深度融合 <strong>五大防坑机制</strong>：① 防歌词字面化 PPT（提炼母题与视觉符号 Motif）｜ ② 词曲情绪反差诊断｜ ③ 歌声听辨置信度与器乐留白｜ ④ 多遍副歌「同词不同境」线性递进｜ ⑤ 绑定人物参考图与场景池上限 (&le;3)。<br/>
+              生成后由裁判模型<strong>直接对比原歌曲音频与生成的 Storyline</strong>，输出量化得分（0–100）、<strong>具体哪里需要优化 (`target_where`)、为什么 (`why_from_song_comparison`) 以及怎么改 (`how_to_optimize`)</strong>。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label style="font-size:12px; color:var(--muted);">选择 Storyline 模型通道:</label>
+            <select id="storyline-model-select" style="width:300px;" onchange="switchStorylineView()">
+              <option value="step5_storyline_argon" selected>通道 S-B (默认 Gemini 4 Argon Medium — 深度故事线创作)</option>
+              <option value="step5_storyline_flash">通道 S-A (默认 Gemini 3.8 Flash — 快速故事线创作)</option>
+            </select>
+            <label style="font-size:12px; color:var(--muted);">并行度:</label>
+            <select id="workers-storyline" style="width:75px;">
+              <option value="2">2 线程</option>
+              <option value="4" selected>4 线程</option>
+              <option value="5">5 线程</option>
+              <option value="10">10 线程</option>
+            </select>
+            <button class="btn btn-primary" onclick="runSelectedStoryline(false)">
+              ▶️ 运行当前 Storyline 通道 (10首并行)
+            </button>
+            <button class="btn btn-cyan" onclick="runBothStoryline()">
+              ⚡ 同时运行 S-A (Flash) + S-B (Argon)
+            </button>
+            <button class="btn" onclick="runSelectedStoryline(true)">
+              ♻️ 强制重跑当前通道
+            </button>
+          </div>
+        </div>
+
+        <div class="cfg-summary-bar">
+          <div id="cfg-pill-storyline">当前 Tab #5 Storyline 模型配置加载中...</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn" onclick="openConfigForRole('tab5_storyline_model_b', 'storyline_generation_prompt')">⚙️ 修改 Storyline 生成模型 / Prompt 配置</button>
+            <button class="btn" onclick="openConfigForRole('storyline_judge', 'storyline_judge_prompt_template')">⚖️ 修改 Storyline vs 歌曲对比裁判配置</button>
+          </div>
+        </div>
+
+        <details style="margin-bottom:14px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 14px;">
+          <summary style="cursor:pointer; font-weight:700; font-size:13px; color:#6ee7b7;">
+            📝 展开查看 / 在线编辑「MV Storyline 专项生成提示词 (`storyline_generation_prompt`)」（含五大防坑铁律，与配置中心实时同步）
+          </summary>
+          <div style="margin-top:10px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+              <span class="badge badge-emerald">✓ 铁律1: 防歌词字面化陷阱 (提炼Subtext与Visual Motif)</span>
+              <span class="badge badge-indigo">✓ 铁律2: 词曲情绪反差诊断 (Melody-Lyric Dissonance)</span>
+              <span class="badge badge-cyan">✓ 铁律3: 歌声听辨置信度过滤 & 器乐段留白</span>
+              <span class="badge badge-amber">✓ 铁律4: 多遍副歌「同词不同境」递进设计</span>
+              <span class="badge badge-rose">✓ 铁律5: 人物参考图特征锁 & 主场景池 &le;3</span>
+            </div>
+            <textarea id="storyline-prompt-quick-box" rows="10" style="width:100%; font-family:monospace; font-size:12px;"></textarea>
+            <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+              <button class="btn btn-emerald" onclick="saveEditedStorylinePrompt()">💾 保存 Storyline 生成提示词修改</button>
+            </div>
+          </div>
+        </details>
+
+        <div id="prog-storyline" style="display:none; margin-bottom:12px; background:#0d1322; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;">
+            <span id="prog-storyline-text" style="font-weight:600; color:#e2e8f0; word-break:break-word;">正在并行创作 MV Storyline 并与原歌曲对比评测...</span>
+            <span id="prog-storyline-pct" style="white-space:nowrap; color:#6ee7b7; font-weight:700;">0%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-storyline-bar"></div></div>
+          <details open style="margin-top:8px;">
+            <summary style="cursor:pointer; font-size:11.5px; color:#fcd34d; font-weight:600;">📜 实时执行日志流 (Live Execution & Error Trace)</summary>
+            <pre id="prog-storyline-logs" style="margin-top:6px; max-height:180px; font-size:11px; line-height:1.45; background:#060911; color:#cbd5e1;"></pre>
+          </details>
+        </div>
+
+        <div class="grid-4" id="summary-storyline" style="margin-bottom:12px;"></div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:52px;">样本</th>
+                <th style="width:185px;">测试集曲目 / 素材</th>
+                <th style="width:130px;">生成状态 & 模型</th>
+                <th style="min-width:270px;">词曲诊断 & 四幕 Storyline 核心设计</th>
+                <th style="width:140px;">歌曲对比总分 (100)</th>
+                <th style="min-width:340px;">🔍 哪里需要优化 & 为什么 (对比原歌曲诊断)</th>
+                <th style="width:130px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-storyline"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB MV STUDIO (V2.3 NEW): STORYLINE -> STORYBOARD -> 24FPS LIP-SYNC -> OMNI 1.1 FLASH -> SUBTITLE SYNC & FFMPEG MERGE -->
+    <div id="tab-mv-studio" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">🎥 Step 6 (V2.3.1) — 基于 V2.2 Storyline 的 MV 全链路自动生成工坊（独唱/合唱/纯故事模式 · 24fps 短句级真音频毫秒口型对齐 · Omni 1.1 渲染 · 字幕合并）</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:4px; line-height:1.55;">
+              深度融合 <code>viral_pitch_studio.py</code> 精细化 Omni 音画对齐控制架构：
+              <strong>① 三大 MV 演绎与对嘴模式：🎤独唱精准对嘴 (`Solo Vocal Lip-Sync`) / 🎭合唱对唱分角对嘴 (`Duet &amp; Chorus Lip-Sync`) / 🎬纯故事叙事无需对嘴 (`Pure Story Narrative`)</strong> ｜
+              <strong>② 24fps (`41.667ms`) DSP 人声频带 (`220–3600Hz`) + 自相关基频 $F_0$ (`85–178Hz` 男声 / `190–380Hz` 女声 / 双声部和声) + 音节律动密度 (`Cadence`) 自动检测</strong> ｜
+              <strong>③ Nano Banana 2.1 角色定妆与各幕首帧 (<code>&lt;FIRST_FRAME&gt;</code>) + 尾帧无缝接力</strong> ｜
+              <strong>④ Gemini Omni 1.1 Flash 原生 <code>[MM:SS.mmm]</code> 分镜生成</strong> ｜
+              <strong>⑤ 毫秒级同步字幕 (<code>.srt</code>/<code>.vtt</code> + 底部精修字幕烧录) &amp; FFmpeg 全曲无损合并</strong>。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="runMvStudioBatch(false)" style="padding:9px 15px; font-size:12.5px;">
+              🚀 一键并行批量生成全部样本 MV
+            </button>
+            <button class="btn btn-cyan" onclick="toggleSingleMvCreatorPanel()">
+              🎵 基于单个歌曲/自定义图片生成单个 MV
+            </button>
+            <button class="btn" onclick="runMvStudioBatch(true)">
+              ♻️ 强制重跑全部 MV
+            </button>
+          </div>
+        </div>
+
+        <!-- Batch & Global MV Studio Controls -->
+        <div class="grid-4" style="background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:12px;">
+          <div>
+            <label style="font-size:11.5px; color:#6ee7b7; font-weight:700; display:block; margin-bottom:4px;">1. Storyline 故事线来源 (继承 V2.2)</label>
+            <select id="mv-storyline-source">
+              <option value="prefer_argon" selected>优先采用 #5 S-B (Gemini 4 Argon Storyline，无则自动生成)</option>
+              <option value="prefer_flash">优先采用 #5 S-A (Gemini 3.8 Flash Storyline，无则自动生成)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px; color:#a5b4fc; font-weight:700; display:block; margin-bottom:4px;">2. 目标 MV 总时长与自动分镜幕数 (默认与歌曲完全等长)</label>
+            <select id="mv-target-duration">
+              <option value="0" selected>🎵 跟随原曲完整时长 (自动全曲 10s×N 幕分镜 + 100% 等长合成)</option>
+              <option value="20">20 秒 (2幕 × 10.0s 起承高潮双幕 MV)</option>
+              <option value="30">30 秒 (3幕 × 10.0s 三幕递进高光 MV)</option>
+              <option value="40">40 秒 (4幕 × 10.0s 四幕全弧光叙事 MV)</option>
+              <option value="60">60 秒 (6幕 × 10.0s 一分钟精华 MV)</option>
+              <option value="120">120 秒 (12幕 × 10.0s 两分钟长篇 MV)</option>
+              <option value="10">10 秒 (1幕 × 10.0s 极速高光片段)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px; color:#fcd34d; font-weight:700; display:block; margin-bottom:4px;">3. MV 演绎与对嘴模式 (独唱 / 合唱对唱 / 纯故事无需对嘴)</label>
+            <select id="mv-performance-mode">
+              <option value="auto_detect" selected>🧠 智能声学判别模式 (自动识别独唱 / 合唱对唱 / 纯故事)</option>
+              <option value="solo_vocal_lipsync">🎤 独唱精准对嘴模式 (Solo Vocal Lip-Sync: 单主唱逐字对嘴 + 配角闭嘴演戏)</option>
+              <option value="duet_chorus_lipsync">🎭 合唱/对唱分角对嘴模式 (Duet &amp; Chorus Lip-Sync: 男女/双角分句轮唱 + 副歌合唱)</option>
+              <option value="pure_story_cinematic">🎬 纯故事叙事模式·无需对嘴 (Pure Story Narrative: 全程不对嘴纯演戏 + 节拍卡点运镜)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px; color:#67e8f9; font-weight:700; display:block; margin-bottom:4px;">4. 分镜衔接与首帧接力模式</label>
+            <select id="mv-continuity-mode">
+              <option value="multi_shot_mv" selected>多幕独立分镜切换 (每幕独立 Nano Banana &lt;FIRST_FRAME&gt;)</option>
+              <option value="continuous_relay">一镜到底尾帧无缝接力 (提取上幕 10.0s 尾帧作为下幕首帧)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px; color:#fda4af; font-weight:700; display:block; margin-bottom:4px;">5. 分镜生成与合成执行模式</label>
+            <select id="mv-execution-mode">
+              <option value="full_auto" selected>🚀 全链路自动生成 (Omni 1.1 Flash 渲染 + 字幕同步烧录 + FFmpeg 合并)</option>
+              <option value="fast_animatic_mv">⚡ 极速动态分镜出片 (Nano Banana 首帧 + 24fps 动态运镜 + 字幕烧录合并)</option>
+              <option value="plan_and_keyframes">📝 仅生成 Phase 1: 毫秒级分镜规划 + 首帧定妆 + 同步字幕轨 (可微调后渲染)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px;">6. 画面比例 &amp; 字幕烧录开关</label>
+            <div style="display:flex; gap:6px;">
+              <select id="mv-aspect-ratio" style="width:52%;">
+                <option value="16:9" selected>16:9 横屏 MV</option>
+                <option value="9:16">9:16 竖屏短视频</option>
+              </select>
+              <select id="mv-burn-subtitles" style="width:48%;">
+                <option value="true" selected>字幕烧录+SRT</option>
+                <option value="false">仅外挂SRT/VTT</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px;">7. 原曲起始偏移秒数 (留空自动按Storyline选高光)</label>
+            <input type="number" id="mv-audio-start-sec" placeholder="留空自动对齐 Storyline 段落 (如 0)" min="0" step="1" />
+          </div>
+          <div>
+            <label style="font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px;">8. 批量生成并行度 (Workers)</label>
+            <select id="workers-mv-studio">
+              <option value="1">1 线程 (顺序稳妥生成)</option>
+              <option value="2" selected>2 线程并行</option>
+              <option value="3">3 线程并行</option>
+              <option value="5">5 线程并行</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="cfg-summary-bar">
+          <div id="cfg-pill-mv-studio">当前 Tab #6 MV 生成工坊模型配置加载中...</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn" onclick="openConfigForRole('tab6_mv_director', 'mv_storyboard_director_prompt')">⚙️ 修改分镜导演 / Nano Banana 2.1 / Omni 1.1 Flash 模型配置</button>
+          </div>
+        </div>
+
+        <!-- Single Song / Custom Image(s) MV Generator Panel -->
+        <div id="single-mv-creator-panel" style="display:none; background:linear-gradient(135deg, rgba(30,27,75,0.65), rgba(15,23,42,0.9)); border:1px solid #6366f1; border-radius:10px; padding:14px 16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong style="font-size:13.5px; color:#a5b4fc;">🎵 单曲 / 自定义图片 MV 专属生成工作台 (支持从测试集选单曲 或 上传全新单曲+图片一键生成 MV)</strong>
+              <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">
+                支持上传 1 张图（单人主角 MV）或 2 张图（双人主角对唱/纯故事 MV）+ 歌曲音频，自动执行 24fps 基频 $F_0$/性别/节奏分析与 Omni 毫秒级时间轴对齐！
+              </div>
+            </div>
+            <button class="btn" onclick="toggleSingleMvCreatorPanel()">✕ 收起单曲工作台</button>
+          </div>
+
+          <div class="grid-2">
+            <!-- Sub-panel A: Pick any existing sample -->
+            <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="font-weight:700; color:#6ee7b7; margin-bottom:8px;">方式 A：基于已有单曲样本生成单个 MV</div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+                <select id="single-mv-sample-select" style="width:260px;"></select>
+                <button class="btn btn-emerald" onclick="runSingleSampleMvFromSelector()">🎬 立即生成该单曲 MV</button>
+              </div>
+              <div style="font-size:11.5px; color:var(--muted);">
+                将读取上方所选的时长（默认全曲等长）、演绎与对嘴模式（智能判别 / 独唱对嘴 / 合唱对唱 / 纯故事不对嘴）、首帧接力模式与字幕烧录设置，立即为所选单曲执行全链路生成。
+              </div>
+            </div>
+
+            <!-- Sub-panel B: Upload custom song + 1~2 images -->
+            <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="font-weight:700; color:#fcd34d; margin-bottom:8px;">方式 B：上传自定义歌曲音频 + 1~2 张角色参考图生成单个 MV</div>
+              <div class="grid-2" style="gap:8px; margin-bottom:8px;">
+                <div>
+                  <label style="font-size:11px; color:var(--muted);">自定义 MV 标题 / 歌名</label>
+                  <input type="text" id="custom-mv-title" placeholder="例如：Neon Rain Ballad / 霓虹雨夜" />
+                </div>
+                <div>
+                  <label style="font-size:11px; color:var(--muted);">演唱语言 (Language)</label>
+                  <select id="custom-mv-lang">
+                    <option value="Chinese">中文 (Mandarin Chinese)</option>
+                    <option value="English" selected>英文 (English)</option>
+                    <option value="Japanese">日文 (Japanese)</option>
+                    <option value="Portuguese">葡语 (Portuguese)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid-3" style="gap:8px; margin-bottom:8px;">
+                <div>
+                  <label style="font-size:11px; color:#fda4af;">*必选: 主角参考图 1 (<code>&lt;IMAGE_REF_0&gt;</code>)</label>
+                  <input type="file" id="custom-mv-img1" accept="image/*" style="font-size:11px;" />
+                </div>
+                <div>
+                  <label style="font-size:11px; color:var(--muted);">可选: 第二角色参考图 2 (<code>&lt;IMAGE_REF_1&gt;</code>)</label>
+                  <input type="file" id="custom-mv-img2" accept="image/*" style="font-size:11px;" />
+                </div>
+                <div>
+                  <label style="font-size:11px; color:#67e8f9;">*必选: 歌曲音频 (.mp3/.wav/.m4a)</label>
+                  <input type="file" id="custom-mv-audio" accept="audio/*" style="font-size:11px;" />
+                </div>
+              </div>
+              <div style="margin-bottom:8px;">
+                <label style="font-size:11px; color:var(--muted);">可选: 导演提示词 / 歌词 / 角色分工约束 (留空则 Zero-Prompt 自动推导 Storyline)</label>
+                <input type="text" id="custom-mv-prompt" placeholder="例如：男主在雨夜霓虹街头深情演唱，女主在伞下流泪不张嘴，副歌镜头环绕升格..." />
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span id="custom-mv-upload-status" style="font-size:11.5px; color:#6ee7b7;"></span>
+                <button class="btn btn-primary" onclick="createAndRunCustomSingleMv()">✨ 上传并一键生成自定义单曲 MV</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expandable MV Storyboard Director Prompt Editor -->
+        <details style="margin-bottom:14px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 14px;">
+          <summary style="cursor:pointer; font-weight:700; font-size:13px; color:#a5b4fc;">
+            📝 展开查看 / 在线编辑「V2.3 MV 毫秒级分镜规划与口型/节奏/字幕对齐导演提示词 (`mv_storyboard_director_prompt`)」
+          </summary>
+          <div style="margin-top:10px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+              <span class="badge badge-emerald">✓ 24fps (41.667ms) 帧网格对齐</span>
+              <span class="badge badge-indigo">✓ DSP 220Hz–3600Hz 人声频带实测</span>
+              <span class="badge badge-cyan">✓ 声画性别锁与演唱权限隔离 (Mouth Isolation)</span>
+              <span class="badge badge-amber">✓ 幕内 A/B/C-Roll 快切运镜语法</span>
+              <span class="badge badge-rose">✓ 毫秒级同步字幕轨 (.srt/.vtt + 烧录)</span>
+            </div>
+            <textarea id="mv-director-prompt-quick-box" rows="9" style="width:100%; font-family:monospace; font-size:12px;"></textarea>
+            <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+              <button class="btn btn-emerald" onclick="saveEditedMvDirectorPrompt()">💾 保存 MV 分镜导演提示词修改</button>
+            </div>
+          </div>
+        </details>
+
+        <!-- Live Batch Progress & Logs for Tab #6 -->
+        <div id="prog-mv-studio" style="display:none; margin-bottom:12px; background:#0d1322; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;">
+            <span id="prog-mv-studio-text" style="font-weight:600; color:#e2e8f0; word-break:break-word;">正在并行执行 MV 全链路生成...</span>
+            <span id="prog-mv-studio-pct" style="white-space:nowrap; color:#6ee7b7; font-weight:700;">0%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-mv-studio-bar"></div></div>
+          <details open style="margin-top:8px;">
+            <summary style="cursor:pointer; font-size:11.5px; color:#fcd34d; font-weight:600;">📡 实时流水线日志 (含 24fps DSP 人声实测、声画性别锁定、Nano Banana 首帧、Omni 1.1 渲染与字幕合并)</summary>
+            <pre id="prog-mv-studio-logs" style="margin-top:6px; max-height:210px; font-size:11px; line-height:1.45; background:#060911; color:#a7f3d0;"></pre>
+          </details>
+        </div>
+
+        <div class="grid-4" id="summary-mv-studio" style="margin-bottom:12px;"></div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:52px;">样本</th>
+                <th style="width:185px;">曲目 / 角色参考图 / 故事线源</th>
+                <th style="width:145px;">状态 &amp; 声画性别锁</th>
+                <th style="min-width:270px;">分镜文本规划 &amp; 24fps 毫秒级口型/节奏时间轴</th>
+                <th style="min-width:220px;">分镜首帧 (<code>&lt;FIRST_FRAME&gt;</code>) &amp; 分镜视频</th>
+                <th style="min-width:260px;">合并成品 MV (含同步字幕烧录 &amp; .srt)</th>
+                <th style="width:135px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mv-studio"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: COMPARISON & PERSISTENCE -->
+    <div id="tab-step5" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Step 5 — 四大实验轨道横向对比大盘 & 本地持久化快照 (Reload for Review)</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              所有测试结果与配置自动保存在本地 <code>data/runs/</code>，重启服务或点击 Reload 即可完整恢复。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="reloadFromDisk()">🔄 立即从磁盘重载 (Reload)</button>
+            <button class="btn btn-emerald" onclick="quickSaveSnapshot()">📸 创建当前状态归档快照</button>
+          </div>
+        </div>
+        <div class="grid-4" id="compare-kpi-grid" style="margin-bottom:16px;"></div>
+        <div style="overflow-x:auto; margin-bottom:18px;">
+          <table>
+            <thead>
+              <tr>
+                <th>样本 ID</th>
+                <th>曲名 / 流派</th>
+                <th>#1 Flash (原Prompt)</th>
+                <th>#2 Argon (原Prompt)</th>
+                <th>#4 通道A (优化Prompt)</th>
+                <th>#4 通道B (优化Prompt)</th>
+                <th>🎬 #5 S-A (Flash Storyline)</th>
+                <th>🎬 #5 S-B (Argon Storyline)</th>
+                <th>最佳轨道</th>
+                <th>详情审阅</th>
+              </tr>
+            </thead>
+            <tbody id="compare-matrix-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="grid-2">
+          <div class="card" style="background:var(--panel2); margin-bottom:0;">
+            <h3 class="card-title" style="margin-bottom:8px;">🗄️ 已保存的历史归档快照 (Snapshots on Disk)</h3>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">
+              点击「加载审阅」即可将该历史快照完整恢复到当前工作台进行对比审阅：
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>快照名称 / 时间</th>
+                  <th>包含已完成样本数</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="snapshots-tbody"></tbody>
+            </table>
+          </div>
+          <div class="card" style="background:var(--panel2); margin-bottom:0;">
+            <h3 class="card-title" style="margin-bottom:8px;">📦 离线 JSON 评测包导入 / 导出 (Review Bundle)</h3>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+              支持将全套配置、Prompt 优化记录与 4 条测试轨道的打分结果导出为单个 JSON 文件，或粘贴 JSON 导入恢复：
+            </div>
+            <textarea id="import-json-box" rows="5" placeholder="在此粘贴导出的 JSON Bundle 内容以恢复审阅..."></textarea>
+            <div style="margin-top:8px; display:flex; gap:8px;">
+              <button class="btn btn-primary" onclick="importJsonBundle()">📥 导入 JSON Bundle 并重载</button>
+              <a class="btn" href="/api/v2/export_bundle" target="_blank" style="text-decoration:none;">⬇️ 下载当前完整 JSON Bundle</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: GLOBAL PROJECT, PER-TAB MODELS & ALL PROMPTS CONFIG CENTER -->
+    <div id="tab-settings" class="tab-pane">
+      <!-- Card 1: Project & Global Settings -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">⚙️ 1. 项目与全局连接配置 (Project & Vertex AI / API Connection)</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              独立配置 Google Cloud <code>project_id</code>、默认 <code>location</code>、超时时间及可选 API Key。保存后立即对所有 Tab 生效并持久化到 <code>data/runs/platform_config.json</code>。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-emerald" onclick="saveAllConfigToServer()">💾 保存全部配置 (Save All Configs)</button>
+            <button class="btn" onclick="resetConfigSection('all')">↩️ 恢复全部默认配置</button>
+          </div>
+        </div>
+        <div class="grid-4">
+          <div>
+            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Google Cloud Project ID</label>
+            <input type="text" id="cfg-project-id" placeholder="genai-dnb-demo" />
+          </div>
+          <div>
+            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">默认 Location (Vertex Region)</label>
+            <input type="text" id="cfg-default-location" placeholder="global / us-central1" />
+          </div>
+          <div>
+            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">调用模式 (Prefer Vertex AI)</label>
+            <select id="cfg-prefer-vertex">
+              <option value="true">Vertex AI 优先 (推荐 ADC 认证)</option>
+              <option value="false">Gemini Developer API Key 优先</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">单次请求超时 (秒)</label>
+            <input type="number" id="cfg-timeout-sec" value="240" min="30" max="900" />
+          </div>
+        </div>
+        <div style="margin-top:10px; margin-bottom:10px;">
+          <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">可选 Gemini API Key (留空则使用本地 gcloud ADC + Project ID)</label>
+          <input type="password" id="cfg-api-key" placeholder="留空默认使用 Vertex AI ADC；如填 API Key 可用于 AI Studio 通道" />
+        </div>
+        <div class="grid-4" style="padding-top:10px; border-top:1px dashed var(--border);">
+          <div>
+            <label style="font-size:12px; color:#6ee7b7; display:block; margin-bottom:4px;">📦 素材与结果多源存储模式 (Storage Mode)</label>
+            <select id="cfg-storage-mode">
+              <option value="auto">Auto 自适应 (本地/挂载卷 → GCS → Google Drive)</option>
+              <option value="gdrive">Google Drive API 实时按需拉取 (无GCS模式)</option>
+              <option value="gcs">Google Cloud Storage (GCS Bucket 优先)</option>
+              <option value="local">Local Disk / Cloud Run GCS FUSE Volume</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px; color:#6ee7b7; display:block; margin-bottom:4px;">☁️ GCS Bucket 名称 (可选，不在GCS则留空)</label>
+            <input type="text" id="cfg-gcs-bucket" placeholder="如 my-mv-eval-bucket (无GCS可留空)" />
+          </div>
+          <div>
+            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">GCS 对象路径前缀 (Prefix)</label>
+            <input type="text" id="cfg-gcs-prefix" placeholder="默认 argon_eval_data" />
+          </div>
+          <div>
+            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Google Drive 样本集 Folder ID (非GCS自动回退源)</label>
+            <input type="text" id="cfg-gdrive-folder" placeholder="1MYa7S2ZjTXcOHrK3lDBUzhCVUUHxyp9Z" />
+          </div>
+        </div>
+        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <span style="font-size:12px; color:#a5b4fc; font-weight:600;">📤 浏览器直接上传/替换样本素材 (无 GCS / Drive 时直接注入容器):</span>
+          <select id="upload-sample-id" style="width:110px;">
+            <option value="01">Sample 01</option><option value="02">Sample 02</option><option value="03">Sample 03</option><option value="04">Sample 04</option><option value="05">Sample 05</option>
+            <option value="06">Sample 06</option><option value="07">Sample 07</option><option value="08">Sample 08</option><option value="09">Sample 09</option><option value="10">Sample 10</option>
+          </select>
+          <select id="upload-target-filename" style="width:185px;">
+            <option value="input_audio_01.mp3">input_audio_01.mp3 (音频)</option>
+            <option value="input_image_01.jpeg">input_image_01.jpeg (参考图1)</option>
+            <option value="input_image_02.jpeg">input_image_02.jpeg (参考图2)</option>
+            <option value="prompt.txt">prompt.txt (导演提示词)</option>
+          </select>
+          <input type="file" id="upload-asset-file" style="width:240px; font-size:11px;" />
+          <button class="btn btn-primary" onclick="uploadSampleAssetFromBrowser()">⬆️ 上传至当前环境</button>
+          <span id="upload-asset-status" style="font-size:11px; color:var(--muted);"></span>
+        </div>
+      </div>
+
+      <!-- Card 2: Per-Tab Independent Model & Inference Parameter Configuration -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">🧠 2. 各 Tab 独立模型、Location 与推理参数配置 (Per-Tab Model & Location Settings)</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              每个 Tab 和裁判角色都可以独立配置自己的 <code>model</code> 名称、专属 <code>location</code>（例如某些模型在 <code>global</code>，某些在 <code>us-central1</code>）、<code>thinking_level</code>、<code>temperature</code>、<code>max_output_tokens</code> 和默认并发线程数。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-emerald" onclick="saveAllConfigToServer()">💾 保存模型参数配置</button>
+            <button class="btn" onclick="resetConfigSection('tab_models')">↩️ 仅重置模型参数为默认</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:20%;">功能角色 / 所属 Tab</th>
+                <th style="width:22%;">模型名称 (Model ID)</th>
+                <th style="width:12%;">Location</th>
+                <th style="width:14%;">Thinking Level</th>
+                <th style="width:10%;">Temperature</th>
+                <th style="width:12%;">Max Output Tokens</th>
+                <th style="width:10%;">默认并发</th>
+              </tr>
+            </thead>
+            <tbody id="cfg-tab-models-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Card 3: All 6 Prompts Configuration & Live Editor -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">📝 3. 全量 Prompt 独立配置中心 (包含原版 Prompt、Gemini 优化后 Prompt、优化器 Meta-Prompt、裁判 Prompt 与规则库)</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+              所有 6 个核心 Prompt 均可独立查看、修改、保存或恢复默认。其中「2. Gemini 优化后的提示词」与 Tab #3 实时双向同步。
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-emerald" onclick="saveAllConfigToServer()">💾 保存全部 Prompt 修改</button>
+            <button class="btn" onclick="resetCurrentPromptOnly()">↩️ 恢复当前选中 Prompt 默认值</button>
+          </div>
+        </div>
+
+        <div class="prompt-subtabs" id="prompt-subtabs-bar">
+          <button class="prompt-subtab active" onclick="selectPromptEditor('original_audio_prompt', this)">1. 原版《音频理解-提示词.txt》(#1 & #2)</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('optimized_prompt', this)">2. Gemini 优化后的提示词 (#3 & #4)</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('prompt_optimizer_meta_prompt', this)">3. 提示词优化器 Meta-Prompt (#3)</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('rubric_judge_prompt_template', this)">4. 《MV评判规则》13维打分裁判模板</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('storyline_generation_prompt', this)" style="border-color:rgba(16,185,129,0.5); color:#6ee7b7;">5. 🎬 MV Storyline 专项生成提示词 (Tab #5)</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('storyline_judge_prompt_template', this)" style="border-color:rgba(16,185,129,0.5); color:#6ee7b7;">6. ⚖️ Storyline vs 歌曲对比裁判模板 (Tab #5)</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('mv_storyboard_director_prompt', this)" style="border-color:rgba(168,85,247,0.55); color:#d8b4fe;">7. 🎥 MV 分镜规划 + Omni 24fps 音画口型/性别/节奏导演提示词 (Tab #6 V2.3)</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('mv_dataset_spec', this)">8. 《MV测试集说明.txt》原文</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('mv_rubric_md', this)">9. 《MV评判规则.md》三层13维度原文</button>
+        </div>
+
+        <div id="prompt-editor-desc" style="font-size:12px; color:#a5b4fc; margin-bottom:8px;"></div>
+        <textarea id="cfg-prompt-editor" rows="20" oninput="onPromptEditorInput()"></textarea>
+      </div>
+    </div>
+  </div>
+      <!-- SAMPLE DETAIL DRAWER -->
+  <div class="drawer-overlay" id="sample-drawer-overlay" onclick="if(event.target===this) closeDrawer()">
+    <div class="drawer">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div>
+          <h2 id="drawer-title" style="margin:0; font-size:16px;">样本详情审阅</h2>
+          <div id="drawer-subtitle" style="color:var(--muted); font-size:12px; margin-top:3px;"></div>
+        </div>
+        <button class="btn" onclick="closeDrawer()">✕ 关闭详情</button>
+      </div>
+      <div id="drawer-media-strip" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:10px 12px; background:var(--panel2); border-radius:8px; margin-bottom:14px;"></div>
+      <div id="drawer-body"></div>
+    </div>
+  </div>
+
+  <!-- RUNTIME DEBUG LOGS & STORAGE DIAGNOSTICS DRAWER -->
+  <div class="drawer-overlay" id="debug-drawer-overlay" onclick="if(event.target===this) closeDebugLogsDrawer()">
+    <div class="drawer" style="width:min(1200px, 96vw);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:#fcd34d;">🐛 实时运行日志与多源存储环境诊断中心 (Runtime Debug & Trace)</h2>
+          <div style="color:var(--muted); font-size:12px; margin-top:3px;">
+            实时排查 Cloud Run / 本地目录挂载、GCS Bucket 权限、Google Drive 回退状态、模型请求耗时及完整 Python 异常堆栈 (`runtime_debug.log`)。
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary" onclick="refreshDebugLogsDrawer()">🔄 刷新诊断与日志</button>
+          <button class="btn" onclick="clearDebugLogs()">🗑️ 清空运行日志</button>
+          <button class="btn" onclick="closeDebugLogsDrawer()">✕ 关闭</button>
+        </div>
+      </div>
+      <div id="debug-drawer-body">正在加载环境诊断与运行日志...</div>
+    </div>
+  </div>
+
+  <!-- V2.3 MV STUDIO INTERACTIVE INSPECTOR & EDITOR DRAWER -->
+  <div class="drawer-overlay" id="mv-studio-drawer-overlay" onclick="if(event.target===this) closeMvStudioDrawer()">
+    <div class="drawer" style="width:min(1260px, 96vw);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h2 id="mv-drawer-title" style="margin:0; font-size:16px; color:#a5b4fc;">🎥 MV 全链路分镜、毫秒级口型时间轴、同步字幕与合并工作台</h2>
+          <div id="mv-drawer-subtitle" style="color:var(--muted); font-size:12px; margin-top:3px;"></div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" onclick="closeMvStudioDrawer()">✕ 关闭工作台</button>
+        </div>
+      </div>
+      <div id="mv-drawer-body"></div>
+    </div>
+  </div>
+
+  <script>
+    let STATE = null;
+    let CURRENT_PROMPT_KEY = 'original_audio_prompt';
+    let DRAFT_PROMPTS = {};
+
+    const ROLE_META = [
+      { key: 'tab1_baseline', label: 'Tab #1: 原Prompt基线 (默认 3.8 Flash)' },
+      { key: 'tab2_argon_baseline', label: 'Tab #2: 原Prompt基线 (默认 4 Argon Medium)' },
+      { key: 'tab3_prompt_optimizer', label: 'Tab #3: 提示词优化器 (Prompt Optimizer)' },
+      { key: 'tab4_opt_model_a', label: 'Tab #4 通道A: 优化后Prompt评测模型 A' },
+      { key: 'tab4_opt_model_b', label: 'Tab #4 通道B: 优化后Prompt评测模型 B' },
+      { key: 'tab5_storyline_model_a', label: '🎬 Tab #5 通道S-A: MV Storyline 创作模型 A (默认 3.8 Flash)' },
+      { key: 'tab5_storyline_model_b', label: '🎬 Tab #5 通道S-B: MV Storyline 深度创作模型 B (默认 4 Argon Medium)' },
+      { key: 'tab6_mv_director', label: '🎥 Tab #6: MV 分镜规划 + 口型节奏导演模型 (默认 4 Argon Medium)' },
+      { key: 'tab6_first_frame_imagen', label: '🎨 Tab #6: 分镜首帧图 & 角色卡生成模型 (Nano Banana 2.1)' },
+      { key: 'tab6_omni_video', label: '🎬 Tab #6: 10秒音画口型同步分镜生成模型 (Omni 1.1 Flash)' },
+      { key: 'rubric_judge', label: '全局裁判 1: 《MV评判规则》13维度自动打分模型' },
+      { key: 'storyline_judge', label: '⚖️ 全局裁判 2: Storyline vs 歌曲对比打分与优化诊断模型' }
+    ];
+
+    const PROMPT_DESCRIPTIONS = {
+      original_audio_prompt: '【1. 原版《音频理解-提示词.txt》】用于 Tab #1 与 Tab #2 基线测试，同时也作为 Tab #3 提示词优化器的输入原稿。',
+      optimized_prompt: '【2. Gemini 优化后的提示词 (Optimized Prompt)】用于 Tab #4 的多模态 MV 策划与分镜测试。既可在 Tab #3 由 Gemini 自动生成，也可在此处或 Tab #3 直接手动编辑保存！',
+      prompt_optimizer_meta_prompt: '【3. 提示词优化器 Meta-Prompt】用于指导 Tab #3 的模型如何结合 Gemini 多模态特性、《MV测试集说明.txt》与《MV评判规则.md》对原提示词进行重构并输出 Why 解释。',
+      rubric_judge_prompt_template: '【4. 《MV评判规则》自动打分裁判模板】用于指导裁判模型对每个样本的分析输出按 L1/L2/L3 共 13 个维度进行量化打分。',
+      storyline_generation_prompt: '【5. 🎬 MV Storyline 专项生成提示词 (V2.2 新增)】用于 Tab #5 基于歌曲歌词、旋律、结构与情绪创作 MV 故事线，内置五大防坑铁律（防歌词字面化、词曲反差诊断、听辨置信度、多遍副歌同词不同境递进、人物与场景池边界锁）。',
+      storyline_judge_prompt_template: '【6. ⚖️ Storyline vs 歌曲对比评测裁判模板 (V2.2 新增)】用于将生成的 Storyline 与原歌曲音频逐段比对，输出 0–100 分、6 大对齐维度得分，以及「哪里需要优化、为什么、怎么改」的结构化诊断。',
+      mv_storyboard_director_prompt: '【7. 🎥 MV 分镜规划 + Omni 24fps 音画口型/角色性别/节奏导演提示词 (V2.3 新增)】用于 Tab #6 将 V2.2 生成的 MV Storyline 自动转化为全曲等长（或指定时长）10.0秒分镜脚本，支持三大演绎模式（🎤独唱精准对嘴 / 🎭合唱对唱分角对嘴 / 🎬纯故事无需对嘴），严格对齐 24fps (41.67ms) DSP 人声包络与 $F_0$ 性别基频、6fps 3D Latent 切镜网格与同步字幕。',
+      mv_dataset_spec: '【8. 《MV测试集说明.txt》原文】包含 01–10 测试集的设计原则、输入设定与曲目说明。',
+      mv_rubric_md: '【9. 《MV评判规则.md》原文】三层评估架构及 13 维度细则。'
+    };
+
+    function switchTab(tabId, btnEl) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+      if (btnEl) {
+        btnEl.classList.add('active');
+      } else {
+        const idxMap = {
+          'tab-step1': 0, 'tab-step2': 1, 'tab-step3': 2,
+          'tab-step4': 3, 'tab-storyline': 4, 'tab-mv-studio': 5, 'tab-step5': 6, 'tab-settings': 7
+        };
+        const navBtns = document.querySelectorAll('.nav-tab');
+        if (idxMap[tabId] !== undefined && navBtns[idxMap[tabId]]) {
+          navBtns[idxMap[tabId]].classList.add('active');
+        }
+      }
+    }
+
+    function openConfigForRole(roleKey, promptKey) {
+      switchTab('tab-settings');
+      if (promptKey) {
+        const subBtns = document.querySelectorAll('.prompt-subtab');
+        const keys = ['original_audio_prompt', 'optimized_prompt', 'prompt_optimizer_meta_prompt', 'rubric_judge_prompt_template', 'storyline_generation_prompt', 'storyline_judge_prompt_template', 'mv_storyboard_director_prompt', 'mv_dataset_spec', 'mv_rubric_md'];
+        const idx = keys.indexOf(promptKey);
+        if (idx >= 0 && subBtns[idx]) {
+          selectPromptEditor(promptKey, subBtns[idx]);
+        }
+      }
+      if (roleKey) {
+        const rowEl = document.getElementById(`role-row-${roleKey}`);
+        if (rowEl) {
+          rowEl.style.outline = '2px solid #6366f1';
+          rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => { rowEl.style.outline = 'none'; }, 2400);
+        }
+      }
+    }
+
+    function scoreBadge(score) {
+      if (score === null || score === undefined || isNaN(score)) return '<span style="color:var(--muted)">—</span>';
+      const n = Number(score);
+      const cls = n >= 85 ? 'score-high' : (n >= 72 ? 'score-mid' : 'score-low');
+      return `<span class="score-pill ${cls}">${n.toFixed(1)}</span>`;
+    }
+
+    function formatRolePill(roleCfg, judgeCfg, projectCfg) {
+      if (!roleCfg) return '';
+      const think = roleCfg.thinking_level ? `thinking=${roleCfg.thinking_level}` : 'thinking=OFF/Default';
+      const judgeStr = judgeCfg ? ` | 裁判: <code>${judgeCfg.model}</code> (${judgeCfg.location || 'global'})` : '';
+      return `📌 当前配置: 模型 <code>${roleCfg.model}</code> | Location: <code>${roleCfg.location || projectCfg.default_location}</code> | <code>${think}</code> | Temp: <code>${roleCfg.temperature}</code> | Project: <code>${projectCfg.project_id}</code>${judgeStr}`;
+    }
+
+    async function reloadFromDisk() {
+      try {
+        const resp = await fetch('/api/v2/state?t=' + Date.now());
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        STATE = await resp.json();
+      } catch (e) {
+        if (window.INITIAL_FALLBACK_STATE) {
+          STATE = JSON.parse(JSON.stringify(window.INITIAL_FALLBACK_STATE));
+        }
+      }
+      if (STATE && STATE.config && STATE.config.prompts) {
+        DRAFT_PROMPTS = Object.assign({}, STATE.config.prompts);
+      }
+      renderAll();
+    }
+
+    function renderAll() {
+      if (!STATE) return;
+      renderConfigSummaryBars();
+      renderConfigTab();
+      renderTrackTable('step1_flash_raw', 'tbody-step1_flash_raw', 'summary-s1');
+      renderTrackTable('step2_argon_raw', 'tbody-step2_argon_raw', 'summary-s2');
+      renderPromptOptimizerTab();
+      switchStep4View();
+      switchStorylineView();
+      if (typeof renderMvStudioTab === 'function') renderMvStudioTab();
+      renderComparisonTab();
+    }
+
+    function renderConfigSummaryBars() {
+      const cfg = STATE.config || {};
+      const proj = cfg.project || {};
+      const tm = cfg.tab_models || {};
+      const hdrProj = document.getElementById('hdr-project-badge');
+      if (hdrProj) {
+        hdrProj.textContent = `Project: ${proj.project_id || 'genai-dnb-demo'} (${proj.default_location || 'global'})`;
+      }
+      const p1 = document.getElementById('cfg-pill-tab1');
+      if (p1 && tm.tab1_baseline) p1.innerHTML = formatRolePill(tm.tab1_baseline, tm.rubric_judge, proj);
+      const p2 = document.getElementById('cfg-pill-tab2');
+      if (p2 && tm.tab2_argon_baseline) p2.innerHTML = formatRolePill(tm.tab2_argon_baseline, tm.rubric_judge, proj);
+      const p3 = document.getElementById('cfg-pill-tab3');
+      if (p3 && tm.tab3_prompt_optimizer) p3.innerHTML = formatRolePill(tm.tab3_prompt_optimizer, null, proj);
+
+      // Update default worker dropdowns from config
+      if (tm.tab1_baseline && tm.tab1_baseline.max_workers) {
+        document.getElementById('workers-s1').value = String(tm.tab1_baseline.max_workers);
+      }
+      if (tm.tab2_argon_baseline && tm.tab2_argon_baseline.max_workers) {
+        document.getElementById('workers-s2').value = String(tm.tab2_argon_baseline.max_workers);
+      }
+
+      // Also update Step 4 dropdown labels with configured model names
+      const sel4 = document.getElementById('step4-model-select');
+      if (sel4 && tm.tab4_opt_model_a && tm.tab4_opt_model_b) {
+        sel4.options[0].textContent = `通道 A: ${tm.tab4_opt_model_a.model} (${tm.tab4_opt_model_a.location || 'global'}, thinking=${tm.tab4_opt_model_a.thinking_level || 'OFF'})`;
+        sel4.options[1].textContent = `通道 B: ${tm.tab4_opt_model_b.model} (${tm.tab4_opt_model_b.location || 'global'}, thinking=${tm.tab4_opt_model_b.thinking_level || 'OFF'})`;
+      }
+    }
+
+    function renderConfigTab() {
+      const cfg = STATE.config || {};
+      const proj = cfg.project || {};
+      const tm = cfg.tab_models || {};
+
+      document.getElementById('cfg-project-id').value = proj.project_id || 'genai-dnb-demo';
+      document.getElementById('cfg-default-location').value = proj.default_location || 'global';
+      document.getElementById('cfg-prefer-vertex').value = proj.prefer_vertexai !== false ? 'true' : 'false';
+      document.getElementById('cfg-timeout-sec').value = proj.request_timeout_sec || 240;
+      document.getElementById('cfg-api-key').value = proj.api_key || '';
+      if (document.getElementById('cfg-storage-mode')) {
+        document.getElementById('cfg-storage-mode').value = proj.asset_storage_mode || 'auto';
+        document.getElementById('cfg-gcs-bucket').value = proj.gcs_bucket || '';
+        document.getElementById('cfg-gcs-prefix').value = proj.gcs_prefix || 'argon_eval_data';
+        document.getElementById('cfg-gdrive-folder').value = proj.gdrive_folder_id || '1MYa7S2ZjTXcOHrK3lDBUzhCVUUHxyp9Z';
+      }
+
+      const tbody = document.getElementById('cfg-tab-models-tbody');
+      let html = '';
+      for (const rm of ROLE_META) {
+        const r = tm[rm.key] || {};
+        const tl = (r.thinking_level || '').toUpperCase();
+        html += `
+          <tr id="role-row-${rm.key}">
+            <td>
+              <div style="font-weight:700;">${rm.label}</div>
+              <div style="font-size:11px; color:var(--muted);">Key: <code>${rm.key}</code></div>
+            </td>
+            <td>
+              <input type="text" id="rm-model-${rm.key}" value="${r.model || ''}" placeholder="gemini-3.8-flash / gemini-4-argon" />
+            </td>
+            <td>
+              <input type="text" id="rm-loc-${rm.key}" value="${r.location || 'global'}" placeholder="global / us-central1" />
+            </td>
+            <td>
+              <select id="rm-think-${rm.key}">
+                <option value="" ${tl === '' ? 'selected' : ''}>不开启 (Default/OFF)</option>
+                <option value="MINIMAL" ${tl === 'MINIMAL' ? 'selected' : ''}>MINIMAL</option>
+                <option value="LOW" ${tl === 'LOW' ? 'selected' : ''}>LOW</option>
+                <option value="MEDIUM" ${tl === 'MEDIUM' ? 'selected' : ''}>MEDIUM</option>
+                <option value="HIGH" ${tl === 'HIGH' ? 'selected' : ''}>HIGH</option>
+              </select>
+            </td>
+            <td>
+              <input type="number" step="0.05" min="0" max="2" id="rm-temp-${rm.key}" value="${r.temperature !== undefined ? r.temperature : 0.2}" />
+            </td>
+            <td>
+              <input type="number" step="512" min="1024" max="65536" id="rm-tokens-${rm.key}" value="${r.max_output_tokens || 65535}" />
+            </td>
+            <td>
+              <input type="number" min="1" max="10" id="rm-workers-${rm.key}" value="${r.max_workers || 4}" />
+            </td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = html;
+
+      // Render current prompt in prompt editor
+      document.getElementById('prompt-editor-desc').textContent = PROMPT_DESCRIPTIONS[CURRENT_PROMPT_KEY] || '';
+      document.getElementById('cfg-prompt-editor').value = DRAFT_PROMPTS[CURRENT_PROMPT_KEY] || '';
+    }
+
+    function selectPromptEditor(promptKey, btnEl) {
+      // Save current textarea value into DRAFT_PROMPTS before switching
+      const editor = document.getElementById('cfg-prompt-editor');
+      if (editor && CURRENT_PROMPT_KEY) {
+        DRAFT_PROMPTS[CURRENT_PROMPT_KEY] = editor.value;
+      }
+      CURRENT_PROMPT_KEY = promptKey;
+      document.querySelectorAll('.prompt-subtab').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      document.getElementById('prompt-editor-desc').textContent = PROMPT_DESCRIPTIONS[promptKey] || '';
+      editor.value = DRAFT_PROMPTS[promptKey] || '';
+    }
+
+    function onPromptEditorInput() {
+      const editor = document.getElementById('cfg-prompt-editor');
+      if (!editor) return;
+      DRAFT_PROMPTS[CURRENT_PROMPT_KEY] = editor.value;
+      // Keep Tab 3 textareas live-synced if editing original_audio_prompt or optimized_prompt
+      if (CURRENT_PROMPT_KEY === 'original_audio_prompt') {
+        const rawBox = document.getElementById('raw-prompt-box');
+        if (rawBox) rawBox.value = editor.value;
+      } else if (CURRENT_PROMPT_KEY === 'optimized_prompt') {
+        const optBox = document.getElementById('opt-prompt-box');
+        if (optBox) optBox.value = editor.value;
+      }
+    }
+
+    function collectConfigPayloadFromUI() {
+      // Sync current prompt editor first
+      const editor = document.getElementById('cfg-prompt-editor');
+      if (editor && CURRENT_PROMPT_KEY) {
+        DRAFT_PROMPTS[CURRENT_PROMPT_KEY] = editor.value;
+      }
+      const project = {
+        project_id: document.getElementById('cfg-project-id').value.trim() || 'genai-dnb-demo',
+        default_location: document.getElementById('cfg-default-location').value.trim() || 'global',
+        prefer_vertexai: document.getElementById('cfg-prefer-vertex').value === 'true',
+        request_timeout_sec: parseInt(document.getElementById('cfg-timeout-sec').value || '240', 10),
+        api_key: document.getElementById('cfg-api-key').value.trim(),
+        asset_storage_mode: document.getElementById('cfg-storage-mode') ? document.getElementById('cfg-storage-mode').value : 'auto',
+        gcs_bucket: document.getElementById('cfg-gcs-bucket') ? document.getElementById('cfg-gcs-bucket').value.trim() : '',
+        gcs_prefix: document.getElementById('cfg-gcs-prefix') ? document.getElementById('cfg-gcs-prefix').value.trim() || 'argon_eval_data' : 'argon_eval_data',
+        gdrive_folder_id: document.getElementById('cfg-gdrive-folder') ? document.getElementById('cfg-gdrive-folder').value.trim() : '1MYa7S2ZjTXcOHrK3lDBUzhCVUUHxyp9Z'
+      };
+      const tab_models = {};
+      for (const rm of ROLE_META) {
+        tab_models[rm.key] = {
+          label: rm.label,
+          model: document.getElementById(`rm-model-${rm.key}`).value.trim(),
+          location: document.getElementById(`rm-loc-${rm.key}`).value.trim() || 'global',
+          thinking_level: document.getElementById(`rm-think-${rm.key}`).value,
+          temperature: parseFloat(document.getElementById(`rm-temp-${rm.key}`).value || '0.2'),
+          max_output_tokens: parseInt(document.getElementById(`rm-tokens-${rm.key}`).value || '65535', 10),
+          max_workers: parseInt(document.getElementById(`rm-workers-${rm.key}`).value || '4', 10)
+        };
+      }
+      return {
+        project,
+        tab_models,
+        prompts: Object.assign({}, DRAFT_PROMPTS)
+      };
+    }
+
+    async function saveAllConfigToServer() {
+      const payload = collectConfigPayloadFromUI();
+      const resp = await fetch('/api/v2/config/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        await reloadFromDisk();
+        alert('已成功保存全部项目、模型与 Prompt 配置到本地磁盘 (platform_config.json)！');
+      }
+    }
+
+    async function uploadSampleAssetFromBrowser() {
+      const sid = document.getElementById('upload-sample-id').value;
+      const fname = document.getElementById('upload-target-filename').value;
+      const fileInput = document.getElementById('upload-asset-file');
+      const statusEl = document.getElementById('upload-asset-status');
+      if (!fileInput.files || !fileInput.files.length) {
+        alert('请先选择要上传的本地文件！');
+        return;
+      }
+      const file = fileInput.files[0];
+      statusEl.textContent = '⏳ 正在读取并上传 ' + file.name + '...';
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        try {
+          const b64 = String(evt.target.result).split(',')[1] || '';
+          const resp = await fetch('/api/v2/samples/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sample_id: sid, filename: fname, data_b64: b64 })
+          });
+          const data = await resp.json();
+          if (data.ok) {
+            statusEl.textContent = `✅ 已成功上传 Sample ${sid}/${fname} (${(data.size_bytes / 1024).toFixed(1)} KB)`;
+            await reloadFromDisk();
+          } else {
+            statusEl.textContent = '❌ 上传失败: ' + (data.detail || JSON.stringify(data));
+          }
+        } catch (err) {
+          statusEl.textContent = '❌ 上传异常: ' + err.message;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function resetConfigSection(section) {
+      if (!confirm(`确定要将 [${section}] 恢复为系统默认配置吗？`)) return;
+      await fetch('/api/v2/config/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section })
+      });
+      await reloadFromDisk();
+    }
+
+    async function resetCurrentPromptOnly() {
+      if (!confirm(`确定要将当前选中的 Prompt (${CURRENT_PROMPT_KEY}) 恢复为默认内容吗？`)) return;
+      await fetch('/api/v2/config/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: `prompt:${CURRENT_PROMPT_KEY}` })
+      });
+      await reloadFromDisk();
+    }
+
+    async function saveOriginalPromptFromTab3() {
+      const val = document.getElementById('raw-prompt-box').value;
+      DRAFT_PROMPTS['original_audio_prompt'] = val;
+      await fetch('/api/v2/config/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompts: { original_audio_prompt: val } })
+      });
+      await reloadFromDisk();
+      alert('已保存原版《音频理解-提示词.txt》配置！Tab #1、#2 与 #3 将立即使用新内容。');
+    }
+
+    function renderTrackSummary(trackKey, containerId) {
+      const sum = (STATE.summaries && STATE.summaries[trackKey]) || { completed_count: 0, avg_overall: 0, avg_l1: 0, avg_l2: 0, avg_l3: 0 };
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      el.innerHTML = `
+        <div class="metric-box">
+          <div class="metric-label">已完成评测样本数</div>
+          <div class="metric-val">${sum.completed_count} / 10</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">《MV评判规则》平均总分 (100)</div>
+          <div class="metric-val" style="color:#a5b4fc;">${sum.avg_overall ? sum.avg_overall.toFixed(1) : '—'}</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">第一层 L1: 质量与稳定性均分 (4维)</div>
+          <div class="metric-val" style="color:#6ee7b7;">${sum.avg_l1 ? sum.avg_l1.toFixed(1) : '—'}</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">第二/三层 L2 & L3: 音乐表达 / 审美与记忆点</div>
+          <div class="metric-val" style="color:#fcd34d;">${sum.avg_l2 ? sum.avg_l2.toFixed(1) : '—'} / ${sum.avg_l3 ? sum.avg_l3.toFixed(1) : '—'}</div>
+        </div>
+      `;
+    }
+
+    function renderTrackTable(trackKey, tbodyId, summaryId, compareBaselineTrackKey = null) {
+      renderTrackSummary(trackKey, summaryId);
+      const tbody = document.getElementById(tbodyId);
+      if (!tbody) return;
+      const trackSamples = (STATE.tracks[trackKey] && STATE.tracks[trackKey].samples) || {};
+      const baseSamples = compareBaselineTrackKey && STATE.tracks[compareBaselineTrackKey]
+        ? (STATE.tracks[compareBaselineTrackKey].samples || {})
+        : null;
+
+      let html = '';
+      for (const s of STATE.samples) {
+        const sid = s.sample_id;
+        const item = trackSamples[sid];
+        const status = item ? item.status : 'not_run';
+        const rubric = (item && item.rubric_evaluation) || {};
+        const overall = rubric.overall_weighted_score;
+        const l1 = rubric.layer1_music_understanding ? rubric.layer1_music_understanding.layer_score_100 : null;
+        const l2 = rubric.layer2_visual_narrative ? rubric.layer2_visual_narrative.layer_score_100 : null;
+        const l3 = rubric.layer3_production_feasibility ? rubric.layer3_production_feasibility.layer_score_100 : null;
+
+        let statusBadge = '<span class="badge">未运行</span>';
+        if (status === 'completed') {
+          const usedModel = (item.analysis_meta && item.analysis_meta.used_model) || item.model_id || '';
+          const thinkLvl = (item.analysis_meta && item.analysis_meta.thinking_level) ? ` [${item.analysis_meta.thinking_level}]` : '';
+          statusBadge = `<span class="badge badge-emerald">✓ 已完成 (${usedModel}${thinkLvl})</span>`;
+        } else if (status === 'error') {
+          const shortErr = (item.error || '执行异常').split('\n')[0].slice(0, 95);
+          statusBadge = `
+            <span class="badge badge-rose" style="cursor:pointer;" onclick="openSampleDrawer('${sid}', '${trackKey}')">✕ 失败 (${item.error_type || 'Error'})</span>
+            <div style="color:#fda4af; font-size:11px; margin-top:4px; line-height:1.35; max-width:260px; word-break:break-word;">${shortErr}</div>
+          `;
+        }
+
+        let deltaCol = '';
+        if (compareBaselineTrackKey) {
+          const baseItem = baseSamples ? baseSamples[sid] : null;
+          const baseScore = baseItem && baseItem.rubric_evaluation ? baseItem.rubric_evaluation.overall_weighted_score : null;
+          if (overall !== null && overall !== undefined && baseScore !== null && baseScore !== undefined) {
+            const diff = Number(overall) - Number(baseScore);
+            const sign = diff >= 0 ? '+' : '';
+            const color = diff >= 0 ? '#34d399' : '#fb7185';
+            deltaCol = `<td><strong style="color:${color}">${sign}${diff.toFixed(1)} 分</strong> <span style="color:var(--muted); font-size:11px;">(vs ${Number(baseScore).toFixed(1)})</span></td>`;
+          } else {
+            deltaCol = `<td style="color:var(--muted);">—</td>`;
+          }
+        }
+
+        const totalLat = item && item.analysis_meta
+          ? `${((item.analysis_meta.latency_sec || 0) + ((item.judge_meta && item.judge_meta.latency_sec) || 0)).toFixed(1)}s`
+          : '—';
+
+        html += `
+          <tr>
+            <td><strong>#${sid}</strong></td>
+            <td>
+              <div style="font-weight:700;">${s.title} <span class="badge badge-indigo">${s.genre}</span></div>
+              <div style="color:var(--muted); font-size:11.5px;">${s.testing_focus}</div>
+            </td>
+            <td>
+              <span class="badge badge-cyan">🎵 ${s.audio_file || '无'}</span>
+              <span class="badge badge-amber">🖼️ ${s.image_count} 张图</span>
+            </td>
+            <td>${statusBadge}</td>
+            <td>${scoreBadge(overall)}</td>
+            ${deltaCol}
+            <td>${scoreBadge(l1)}</td>
+            <td>${scoreBadge(l2)}</td>
+            <td>${scoreBadge(l3)}</td>
+            ${compareBaselineTrackKey ? '' : `<td style="color:var(--muted);">${totalLat}</td>`}
+            <td>
+              <div style="display:flex; gap:6px;">
+                <button class="btn" onclick="openSampleDrawer('${sid}', '${trackKey}')">🔍 审阅结果/打分</button>
+                <button class="btn" onclick="runSingleSample('${trackKey}', '${sid}')">↻ 单曲重测</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = html;
+    }
+
+    function renderPromptOptimizerTab() {
+      const p3 = STATE.step3_prompt_opt || {};
+      const cfgPrompts = (STATE.config && STATE.config.prompts) || {};
+      document.getElementById('raw-prompt-box').value = cfgPrompts.original_audio_prompt || STATE.raw_audio_prompt || '';
+      document.getElementById('opt-prompt-box').value = cfgPrompts.optimized_prompt || p3.optimized_prompt || '';
+
+      const badge = document.getElementById('opt-source-badge');
+      const meta = p3._meta || {};
+      if (meta.source === 'gemini-4-argon-live') {
+        badge.textContent = `状态: 已由 ${meta.used_model || 'gemini-4-argon'} (${meta.thinking_level || 'MEDIUM'}) 实时生成 (${meta.updated_at || ''})`;
+      } else if (meta.source === 'user-edited') {
+        badge.textContent = `状态: 用户已手动微调并保存 (${meta.updated_at || ''})`;
+      } else {
+        badge.textContent = `状态: 已加载 Gemini 4 Argon 优化版提示词与 Why 分析`;
+      }
+
+      document.getElementById('opt-summary-banner').textContent = p3.optimization_summary || '';
+      const fillList = (id, arr) => {
+        const el = document.getElementById(id);
+        el.innerHTML = (arr || []).map(x => `<li style="margin-bottom:4px;">${x}</li>`).join('');
+      };
+      fillList('opt-weaknesses', p3.original_prompt_weaknesses);
+      fillList('opt-adaptations', p3.gemini_specific_adaptations);
+      fillList('opt-preserved', p3.intent_preservation_notes);
+
+      const rbody = document.getElementById('opt-rationale-tbody');
+      rbody.innerHTML = (p3.change_rationale || []).map(r => `
+        <tr>
+          <td><strong>${r.module || ''}</strong></td>
+          <td style="color:#fda4af;">${r.before || ''}</td>
+          <td style="color:#6ee7b7;">${r.after || ''}</td>
+          <td>${r.why || ''}</td>
+        </tr>
+      `).join('');
+    }
+
+    function switchStep4View() {
+      if (!STATE) return;
+      const trackKey = document.getElementById('step4-model-select').value;
+      const compareBase = trackKey === 'step4_opt_flash' ? 'step1_flash_raw' : 'step2_argon_raw';
+      const cfg = STATE.config || {};
+      const tm = cfg.tab_models || {};
+      const proj = cfg.project || {};
+      const roleKey = trackKey === 'step4_opt_flash' ? 'tab4_opt_model_a' : 'tab4_opt_model_b';
+      const p4 = document.getElementById('cfg-pill-tab4');
+      if (p4 && tm[roleKey]) {
+        p4.innerHTML = formatRolePill(tm[roleKey], tm.rubric_judge, proj);
+      }
+      renderTrackTable(trackKey, 'tbody-step4', 'summary-s4', compareBase);
+    }
+
+    function switchStorylineView() {
+      if (!STATE) return;
+      const selEl = document.getElementById('storyline-model-select');
+      if (!selEl) return;
+      const trackKey = selEl.value;
+      const cfg = STATE.config || {};
+      const tm = cfg.tab_models || {};
+      const proj = cfg.project || {};
+      const roleKey = trackKey === 'step5_storyline_flash' ? 'tab5_storyline_model_a' : 'tab5_storyline_model_b';
+      const judgeCfg = tm.storyline_judge || tm.rubric_judge;
+      const pillEl = document.getElementById('cfg-pill-storyline');
+      if (pillEl && tm[roleKey]) {
+        pillEl.innerHTML = formatRolePill(tm[roleKey], judgeCfg, proj);
+      }
+      const qbox = document.getElementById('storyline-prompt-quick-box');
+      if (qbox && cfg.prompts && cfg.prompts.storyline_generation_prompt) {
+        qbox.value = DRAFT_PROMPTS['storyline_generation_prompt'] || cfg.prompts.storyline_generation_prompt;
+      }
+      renderStorylineTable(trackKey);
+    }
+
+    function renderStorylineTable(trackKey) {
+      const sum = (STATE.summaries && STATE.summaries[trackKey]) || { completed_count: 0, avg_overall: 0, avg_l1: 0, avg_l2: 0, avg_l3: 0 };
+      const sumEl = document.getElementById('summary-storyline');
+      if (sumEl) {
+        sumEl.innerHTML = `
+          <div class="metric-box">
+            <div class="metric-label">已生成并对比评测的 Storyline 数</div>
+            <div class="metric-val">${sum.completed_count} / 10</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Storyline vs 原歌曲对比均分 (100)</div>
+            <div class="metric-val" style="color:#6ee7b7;">${sum.avg_overall ? sum.avg_overall.toFixed(1) : '—'}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">词曲情绪契合 (L1) / 副歌递进与时间轴 (L2)</div>
+            <div class="metric-val" style="color:#93c5fd;">${sum.avg_l1 ? sum.avg_l1.toFixed(1) : '—'} / ${sum.avg_l2 ? sum.avg_l2.toFixed(1) : '—'}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">人物场景边界锁 & 可拍性记忆点 (L3)</div>
+            <div class="metric-val" style="color:#fcd34d;">${sum.avg_l3 ? sum.avg_l3.toFixed(1) : '—'}</div>
+          </div>
+        `;
+      }
+
+      const tbody = document.getElementById('tbody-storyline');
+      if (!tbody) return;
+      const trackSamples = (STATE.tracks[trackKey] && STATE.tracks[trackKey].samples) || {};
+      let html = '';
+
+      for (const s of STATE.samples) {
+        const sid = s.sample_id;
+        const item = trackSamples[sid];
+        const status = item ? item.status : 'not_run';
+        const out = (item && item.analysis_output) || {};
+        const rub = (item && item.rubric_evaluation) || {};
+        const overall = rub.overall_weighted_score;
+        const dims = rub.dimensions || {};
+
+        let statusBadge = '<span class="badge">待生成</span>';
+        if (status === 'completed') {
+          const usedModel = (item.analysis_meta && item.analysis_meta.used_model) || item.model || '';
+          const thinkLvl = (item.analysis_meta && item.analysis_meta.thinking_level) ? ` [${item.analysis_meta.thinking_level}]` : '';
+          statusBadge = `<span class="badge badge-emerald">✓ 已完成 (${usedModel}${thinkLvl})</span>`;
+        } else if (status === 'error') {
+          const shortErr = (item.error || '执行异常').split('\n')[0].slice(0, 95);
+          statusBadge = `
+            <span class="badge badge-rose" style="cursor:pointer;" onclick="openSampleDrawer('${sid}', '${trackKey}')">✕ 失败 (${item.error_type || 'Error'})</span>
+            <div style="color:#fda4af; font-size:11px; margin-top:4px; line-height:1.35; max-width:260px; word-break:break-word;">${shortErr}</div>
+          `;
+        }
+
+        let storylineSummaryHtml = '<span style="color:var(--muted); font-size:12px;">点击上方「运行当前 Storyline 通道」或右侧「单曲生成」以基于歌曲词曲情绪生成完整 MV Storyline</span>';
+        if (status === 'completed' && out) {
+          const diag = out.music_lyric_melody_diagnosis || {};
+          const guard = out.character_and_scene_guardrails || {};
+          const arc = out.four_act_story_arc || {};
+          const beats = out.time_anchored_story_beats || [];
+          const nMode = diag.narrative_mode || 'story_driven';
+          const contrastTag = diag.is_melody_lyric_contrasted
+            ? '<span class="badge badge-amber">⚡ 词曲反差张力模式</span>'
+            : '<span class="badge badge-cyan">🎵 词曲同频共鸣模式</span>';
+          const confVal = diag.lyric_listening_confidence !== undefined ? `歌词听辨置信度: ${Math.round(Number(diag.lyric_listening_confidence)*100)}%` : '';
+          storylineSummaryHtml = `
+            <div style="font-size:12px; line-height:1.55;">
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
+                <span class="badge badge-indigo">${nMode}</span>
+                ${contrastTag}
+                ${confVal ? `<span class="badge">${confVal}</span>` : ''}
+                <span class="badge badge-emerald">时间码段落: ${beats.length} 幕</span>
+              </div>
+              <div style="margin-bottom:4px;"><strong>🎯 故事主线 (Logline):</strong> <span style="color:#e2e8f0;">${arc.logline || diag.lyric_subtext_and_core_theme || '—'}</span></div>
+              <div style="margin-bottom:4px; color:#93c5fd;"><strong>🔑 核心视觉符号 (Visual Motif):</strong> ${guard.core_visual_motif || '—'}</div>
+              <div style="color:var(--muted); font-size:11.5px;">
+                <strong>🔄 副歌同词不同境递进:</strong>
+                Chorus1(${(arc.chorus_contextual_progression && arc.chorus_contextual_progression.chorus_1_treatment || '').slice(0, 26)}...) →
+                Final(${(arc.chorus_contextual_progression && arc.chorus_contextual_progression.final_chorus_treatment || '').slice(0, 26)}...)
+              </div>
+            </div>
+          `;
+        } else if (status === 'error') {
+          storylineSummaryHtml = `<div style="color:#fda4af; font-size:12px;">${item.error || '执行异常'}</div>`;
+        }
+
+        let scoreHtml = scoreBadge(overall);
+        if (status === 'completed' && rub) {
+          const s1 = dims.S1_melody_emotion_arc ? dims.S1_melody_emotion_arc.score_10 : '—';
+          const s2 = dims.S2_lyric_subtext_translation ? dims.S2_lyric_subtext_translation.score_10 : '—';
+          const s3 = dims.S3_chorus_progression_anti_repeat ? dims.S3_chorus_progression_anti_repeat.score_10 : '—';
+          const s5 = dims.S5_character_scene_constraint_lock ? dims.S5_character_scene_constraint_lock.score_10 : '—';
+          scoreHtml = `
+            <div>${scoreBadge(overall)} <span class="badge badge-indigo">${rub.grade || ''}</span></div>
+            <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.45;">
+              旋律弧光: <strong>${s1}</strong>/10<br/>
+              歌词转译: <strong>${s2}</strong>/10<br/>
+              副歌递进: <strong>${s3}</strong>/10<br/>
+              角色/场景锁: <strong>${s5}</strong>/10
+            </div>
+          `;
+        }
+
+        let optDiagHtml = '<span style="color:var(--muted); font-size:12px;">—</span>';
+        if (status === 'completed' && rub) {
+          const diags = rub.optimization_diagnostics || [];
+          if (diags.length) {
+            optDiagHtml = diags.slice(0, 3).map(d => `
+              <div style="background:rgba(15,23,42,0.75); border-left:3px solid #f59e0b; padding:6px 8px; border-radius:4px; margin-bottom:6px; font-size:11.5px; line-height:1.45;">
+                <div><strong style="color:#fcd34d;">📍 哪里需优化: ${d.target_where || '段落细节'}</strong></div>
+                <div style="color:#fda4af; margin-top:2px;"><strong>⚠️ 问题:</strong> ${d.problem_what || ''}</div>
+                <div style="color:#cbd5e1; margin-top:2px;"><strong>❓ 为什么 (对比原曲):</strong> ${d.why_from_song_comparison || ''}</div>
+                <div style="color:#6ee7b7; margin-top:2px;"><strong>💡 建议怎么改:</strong> ${d.how_to_optimize || ''}</div>
+              </div>
+            `).join('');
+          } else if (rub.song_vs_storyline_comparison_verdict) {
+            optDiagHtml = `<div style="font-size:12px; color:#cbd5e1;">${rub.song_vs_storyline_comparison_verdict}</div>`;
+          }
+        }
+
+        html += `
+          <tr>
+            <td><strong>#${sid}</strong></td>
+            <td>
+              <div style="font-weight:700;">${s.title}</div>
+              <div style="margin-top:3px;"><span class="badge badge-indigo">${s.genre}</span> <span class="badge badge-amber">🖼️ ${s.image_count}张图</span></div>
+              <div style="color:var(--muted); font-size:11px; margin-top:4px;">${s.testing_focus}</div>
+            </td>
+            <td>${statusBadge}</td>
+            <td>${storylineSummaryHtml}</td>
+            <td>${scoreHtml}</td>
+            <td>${optDiagHtml}</td>
+            <td>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <button class="btn" onclick="openSampleDrawer('${sid}', '${trackKey}')">🔍 完整故事线与诊断</button>
+                <button class="btn btn-primary" onclick="runSingleSample('${trackKey}', '${sid}')">▶️ 单曲生成/重测</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = html;
+    }
+
+    function renderComparisonTab() {
+      const kpiGrid = document.getElementById('compare-kpi-grid');
+      const tracks = [
+        { key: 'step1_flash_raw', title: '#1 原Prompt Flash (Tab 1)', color: '#38bdf8' },
+        { key: 'step2_argon_raw', title: '#2 原Prompt Argon (Tab 2)', color: '#a5b4fc' },
+        { key: 'step4_opt_flash', title: '#4 优化Prompt 通道A', color: '#34d399' },
+        { key: 'step4_opt_argon', title: '#4 优化Prompt 通道B', color: '#fbbf24' },
+        { key: 'step5_storyline_flash', title: '🎬 #5 S-A Flash Storyline', color: '#2dd4bf' },
+        { key: 'step5_storyline_argon', title: '🎬 #5 S-B Argon Storyline', color: '#f472b6' },
+      ];
+      kpiGrid.innerHTML = tracks.map(t => {
+        const s = (STATE.summaries && STATE.summaries[t.key]) || { completed_count: 0, avg_overall: 0, avg_l1: 0, avg_l2: 0, avg_l3: 0 };
+        return `
+          <div class="metric-box">
+            <div class="metric-label">${t.title}</div>
+            <div class="metric-val" style="color:${t.color};">${s.avg_overall ? s.avg_overall.toFixed(1) : '—'} <span style="font-size:12px; color:var(--muted);">(${s.completed_count}/10首)</span></div>
+            <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">
+              L1: ${s.avg_l1 || '—'} | L2: ${s.avg_l2 || '—'} | L3: ${s.avg_l3 || '—'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const mbody = document.getElementById('compare-matrix-tbody');
+      const getScore = (tkey, sid) => {
+        const item = STATE.tracks[tkey] && STATE.tracks[tkey].samples && STATE.tracks[tkey].samples[sid];
+        if (!item || item.status !== 'completed' || !item.rubric_evaluation) return null;
+        return Number(item.rubric_evaluation.overall_weighted_score);
+      };
+
+      mbody.innerHTML = STATE.samples.map(s => {
+        const sid = s.sample_id;
+        const sc1 = getScore('step1_flash_raw', sid);
+        const sc2 = getScore('step2_argon_raw', sid);
+        const sc3 = getScore('step4_opt_flash', sid);
+        const sc4 = getScore('step4_opt_argon', sid);
+        const sc5a = getScore('step5_storyline_flash', sid);
+        const sc5b = getScore('step5_storyline_argon', sid);
+        const candidates = [
+          { label: '#1 Tab1基线', val: sc1 },
+          { label: '#2 Tab2基线', val: sc2 },
+          { label: '#4 优化通道A', val: sc3 },
+          { label: '#4 优化通道B', val: sc4 },
+          { label: '#5 Storyline S-A', val: sc5a },
+          { label: '#5 Storyline S-B', val: sc5b },
+        ].filter(x => x.val !== null && !isNaN(x.val));
+        candidates.sort((a, b) => b.val - a.val);
+        const winner = candidates.length ? `<span class="badge badge-emerald">${candidates[0].label} (${candidates[0].val.toFixed(1)})</span>` : '<span style="color:var(--muted)">待运行</span>';
+
+        return `
+          <tr>
+            <td><strong>#${sid}</strong></td>
+            <td><strong>${s.title}</strong> <span class="badge badge-indigo">${s.genre}</span></td>
+            <td>${scoreBadge(sc1)}</td>
+            <td>${scoreBadge(sc2)}</td>
+            <td>${scoreBadge(sc3)}</td>
+            <td>${scoreBadge(sc4)}</td>
+            <td>${scoreBadge(sc5a)}</td>
+            <td>${scoreBadge(sc5b)}</td>
+            <td>${winner}</td>
+            <td>
+              <button class="btn" onclick="openSampleDrawer('${sid}', 'step5_storyline_argon')">🔍 全轨审阅</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const sbody = document.getElementById('snapshots-tbody');
+      const snaps = STATE.snapshots || [];
+      if (!snaps.length) {
+        sbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted);">暂无归档快照，点击右上角「保存快照」即可随时归档当前进度。</td></tr>`;
+      } else {
+        sbody.innerHTML = snaps.map(sn => {
+          const cnt = sn.track_counts || {};
+          const summaryStr = `#1:${cnt.step1_flash_raw||0} | #2:${cnt.step2_argon_raw||0} | #4A:${cnt.step4_opt_flash||0} | #4B:${cnt.step4_opt_argon||0} | 🎬S-A:${cnt.step5_storyline_flash||0} | 🎬S-B:${cnt.step5_storyline_argon||0}`;
+          return `
+            <tr>
+              <td>
+                <div style="font-weight:700;">${sn.label}</div>
+                <div style="font-size:11px; color:var(--muted);">${sn.created_at} (${sn.filename})</div>
+              </td>
+              <td><span class="badge badge-cyan">${summaryStr}</span></td>
+              <td>
+                <button class="btn btn-primary" onclick="loadSnapshot('${sn.filename}')">📂 加载审阅 (Reload Snapshot)</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    async function pollJobUntilDone(jobId, progWrapId) {
+      const wrap = document.getElementById(progWrapId);
+      const txt = document.getElementById(progWrapId + '-text');
+      const pct = document.getElementById(progWrapId + '-pct');
+      const bar = document.getElementById(progWrapId + '-bar');
+      const logsEl = document.getElementById(progWrapId + '-logs');
+      if (wrap) wrap.style.display = 'block';
+      let missCount = 0;
+
+      while (true) {
+        try {
+          const r = await fetch(`/api/v2/job/${jobId}?t=${Date.now()}`);
+          if (!r.ok) {
+            missCount++;
+            if (missCount >= 8 && txt) {
+              txt.textContent = `⚠️ 后台任务 (${jobId}) 连接中断或容器实例已重启 (HTTP ${r.status})，已保留最后日志快照。若在 Cloud Run 运行，请确认已开启 --cpu 4 --memory 8Gi --no-cpu-throttling。`;
+              txt.style.color = '#fcd34d';
+              break;
+            }
+            await new Promise(res => setTimeout(res, 2000));
+            continue;
+          }
+          const j = await r.json();
+          if (!j || (!j.job_id && !j.track_key && j.progress_pct === undefined)) {
+            await new Promise(res => setTimeout(res, 2000));
+            continue;
+          }
+          missCount = 0;
+          const total = j.total || j.total_samples || 10;
+          const done = j.completed || j.completed_samples || 0;
+          const succ = j.succeeded_samples !== undefined ? j.succeeded_samples : done;
+          const fail = j.failed_samples || 0;
+          const p = j.progress_pct !== undefined ? j.progress_pct : Math.round((done / total) * 100);
+          const stepMsg = j.current_step || `正在并行评测 (${j.track_key || 'mv_studio'}): 已处理 ${done}/${total} 首样本...`;
+          if (txt) {
+            txt.textContent = stepMsg;
+            txt.style.color = fail > 0 ? '#fda4af' : '#e2e8f0';
+          }
+          if (pct) pct.textContent = `${p}% (✅${succ} / ❌${fail} / 共${total})`;
+          if (bar) {
+            bar.style.width = `${p}%`;
+            bar.style.background = fail > 0
+              ? 'linear-gradient(90deg, #f59e0b, #f43f5e)'
+              : 'linear-gradient(90deg, #6366f1, #10b981)';
+          }
+          if (logsEl && Array.isArray(j.logs) && j.logs.length > 0) {
+            logsEl.textContent = j.logs.join('\n');
+            logsEl.scrollTop = logsEl.scrollHeight;
+          }
+
+          await reloadFromDisk();
+          if (j.status === 'completed' || j.status === 'partial_error' || j.status === 'error') {
+            if (fail === 0) {
+              setTimeout(() => { if (wrap) wrap.style.display = 'none'; }, 3500);
+            }
+            break;
+          }
+        } catch (pollErr) {
+          console.warn('pollJobUntilDone transient error:', pollErr);
+        }
+        await new Promise(res => setTimeout(res, 1500));
+      }
+    }
+
+    async function runTrack(trackKey, modelOverride, workersSelectId, progWrapId, forceRerun) {
+      const workers = parseInt(document.getElementById(workersSelectId).value || '4', 10);
+      const customPrompt = (trackKey === 'step4_opt_flash' || trackKey === 'step4_opt_argon')
+        ? document.getElementById('opt-prompt-box').value
+        : '';
+      const resp = await fetch('/api/v2/run_track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          track_key: trackKey,
+          model_override: modelOverride,
+          max_workers: workers,
+          force_rerun: forceRerun,
+          custom_prompt: customPrompt
+        })
+      });
+      const data = await resp.json();
+      await pollJobUntilDone(data.job_id, progWrapId);
+    }
+
+    async function runSingleSample(trackKey, sampleId) {
+      const progMap = {
+        'step1_flash_raw': 'prog-s1',
+        'step2_argon_raw': 'prog-s2',
+        'step4_opt_flash': 'prog-s4',
+        'step4_opt_argon': 'prog-s4',
+        'step5_storyline_flash': 'prog-storyline',
+        'step5_storyline_argon': 'prog-storyline',
+        'track5_storyline_flash38': 'prog-storyline',
+        'track5_storyline_argon4': 'prog-storyline',
+      };
+      let customPrompt = '';
+      if (trackKey === 'step4_opt_flash' || trackKey === 'step4_opt_argon') {
+        customPrompt = document.getElementById('opt-prompt-box').value;
+      } else if (trackKey.includes('storyline')) {
+        const sq = document.getElementById('storyline-prompt-quick-box');
+        if (sq) customPrompt = sq.value;
+      }
+      const resp = await fetch('/api/v2/run_track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          track_key: trackKey,
+          sample_ids: [sampleId],
+          max_workers: 1,
+          force_rerun: true,
+          custom_prompt: customPrompt
+        })
+      });
+      const data = await resp.json();
+      await pollJobUntilDone(data.job_id, progMap[trackKey] || 'prog-s1');
+    }
+
+    async function runSelectedStep4(forceRerun) {
+      const trackKey = document.getElementById('step4-model-select').value;
+      await runTrack(trackKey, '', 'workers-s4', 'prog-s4', forceRerun);
+    }
+
+    async function runBothStep4() {
+      await runTrack('step4_opt_flash', '', 'workers-s4', 'prog-s4', false);
+      await runTrack('step4_opt_argon', '', 'workers-s4', 'prog-s4', false);
+    }
+
+    async function runSelectedStoryline(forceRerun) {
+      const trackKey = document.getElementById('storyline-model-select').value;
+      await runTrack(trackKey, '', 'workers-storyline', 'prog-storyline', forceRerun);
+    }
+
+    async function runBothStoryline() {
+      await runTrack('step5_storyline_flash', '', 'workers-storyline', 'prog-storyline', false);
+      await runTrack('step5_storyline_argon', '', 'workers-storyline', 'prog-storyline', false);
+    }
+
+    async function saveEditedStorylinePrompt() {
+      const txt = document.getElementById('storyline-prompt-quick-box').value;
+      DRAFT_PROMPTS['storyline_generation_prompt'] = txt;
+      await fetch('/api/v2/save_storyline_prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storyline_generation_prompt: txt })
+      });
+      await reloadFromDisk();
+      alert('已保存 MV Storyline 专项生成提示词（同步更新至全局配置中心）！');
+    }
+
+    async function triggerPromptOptimization() {
+      const btn = document.getElementById('btn-opt-prompt');
+      btn.disabled = true;
+      btn.textContent = '⏳ Gemini 4 Argon 正在深度重构 Prompt 并生成 Why 解释...';
+      try {
+        const rawPromptVal = document.getElementById('raw-prompt-box').value;
+        const metaPromptVal = DRAFT_PROMPTS['prompt_optimizer_meta_prompt'] || '';
+        const resp = await fetch('/api/v2/optimize_prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            original_audio_prompt: rawPromptVal,
+            meta_prompt: metaPromptVal
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          alert('调用失败: ' + (data.detail || resp.statusText));
+        } else {
+          await reloadFromDisk();
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ 调用 Gemini 4 Argon 重新生成优化版 Prompt & Why 分析';
+      }
+    }
+
+    async function saveEditedOptimizedPrompt() {
+      const txt = document.getElementById('opt-prompt-box').value;
+      DRAFT_PROMPTS['optimized_prompt'] = txt;
+      await fetch('/api/v2/save_optimized_prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optimized_prompt: txt })
+      });
+      await reloadFromDisk();
+      alert('已保存优化后的 Prompt（同步更新至全局配置与 Step 4）！');
+    }
+
+    async function quickSaveSnapshot() {
+      const label = prompt('请输入快照备注名称:', 'MV四轨评测快照');
+      if (label === null) return;
+      await fetch('/api/v2/snapshots/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label })
+      });
+      await reloadFromDisk();
+      alert('快照已保存到本地磁盘 data/runs/snapshots/！');
+    }
+
+    async function loadSnapshot(filename) {
+      if (!confirm(`确定要从快照 [${filename}] 恢复全部评测状态吗？`)) return;
+      await fetch('/api/v2/snapshots/load', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename })
+      });
+      await reloadFromDisk();
+    }
+
+    async function importJsonBundle() {
+      const raw = document.getElementById('import-json-box').value.trim();
+      if (!raw) return alert('请先粘贴 JSON Bundle 内容');
+      try {
+        const parsed = JSON.parse(raw);
+        await fetch('/api/v2/import_bundle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bundle: parsed })
+        });
+        await reloadFromDisk();
+        alert('成功导入 JSON Bundle 并刷新全平台状态！');
+      } catch (e) {
+        alert('JSON 解析失败: ' + e.message);
+      }
+    }
+
+    function openSampleDrawer(sampleId, defaultTrackKey) {
+      const s = STATE.samples.find(x => x.sample_id === sampleId);
+      if (!s) return;
+      document.getElementById('drawer-title').textContent = `样本 #${sampleId} — ${s.title} (${s.genre})`;
+      document.getElementById('drawer-subtitle').textContent = `${s.description} | 考察重点: ${s.testing_focus}`;
+
+      const strip = document.getElementById('drawer-media-strip');
+      let mediaHtml = '';
+      if (s.audio_url) {
+        mediaHtml += `
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge badge-cyan">🎵 ${s.audio_file}</span>
+            <audio controls preload="none" src="${s.audio_url}" style="height:32px;"></audio>
+          </div>
+        `;
+      }
+      if (s.images && s.images.length) {
+        mediaHtml += s.images.map(img => `
+          <a href="${img.url}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#93c5fd; text-decoration:none; font-size:12px;">
+            <img src="${img.url}" style="height:40px; width:40px; object-fit:cover; border-radius:6px; border:1px solid var(--border);" />
+            <span>${img.name}</span>
+          </a>
+        `).join('');
+      }
+      strip.innerHTML = mediaHtml;
+
+      const trackOrder = [
+        { key: 'step5_storyline_argon', name: '🎬 #5 S-B: MV Storyline 创作 + 歌曲对比诊断 (Argon Medium)', isStoryline: true },
+        { key: 'step5_storyline_flash', name: '🎬 #5 S-A: MV Storyline 创作 + 歌曲对比诊断 (3.8 Flash)', isStoryline: true },
+        { key: 'step4_opt_argon', name: '#4 优化Prompt + 通道B (Argon)' },
+        { key: 'step4_opt_flash', name: '#4 优化Prompt + 通道A (Flash)' },
+        { key: 'step2_argon_raw', name: '#2 原Prompt Argon Medium (Tab 2)' },
+        { key: 'step1_flash_raw', name: '#1 原Prompt基线 (Tab 1)' },
+      ];
+
+      let bodyHtml = `<div class="grid-2">`;
+      for (const t of trackOrder) {
+        const item = STATE.tracks[t.key] && STATE.tracks[t.key].samples && STATE.tracks[t.key].samples[sampleId];
+        const isFocus = t.key === defaultTrackKey ? 'border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent);' : '';
+        if (!item || item.status !== 'completed') {
+          let errBlock = '<div style="color:var(--muted);">尚未运行该轨道</div>';
+          if (item && item.error) {
+            const tbHtml = item.traceback
+              ? `<details style="margin-top:8px;"><summary style="cursor:pointer; color:#fcd34d; font-weight:600; font-size:11.5px;">🔍 展开完整 Python Traceback 堆栈 (${item.error_type || 'Exception'} @ ${item.error_stage || 'STAGE'})</summary><pre style="margin-top:6px; color:#cbd5e1; font-size:11px; max-height:280px;">${item.traceback}</pre></details>`
+              : '';
+            errBlock = `
+              <div style="background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.4); border-radius:8px; padding:10px 12px;">
+                <div style="font-weight:700; color:#fb7185; margin-bottom:4px;">❌ 执行失败 [${item.error_stage || 'RUNTIME'}] (${item.error_type || 'Error'}) — ${item.evaluated_at || ''}</div>
+                <pre style="color:#fda4af; background:#090d16; margin:0; max-height:240px;">${item.error}</pre>
+                ${tbHtml}
+              </div>
+            `;
+          }
+          bodyHtml += `
+            <div class="card" style="background:var(--panel2); ${isFocus}">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong>${t.name}</strong>
+                <button class="btn btn-primary" onclick="runSingleSample('${t.key}', '${sampleId}')">▶️ 立即运行此样本</button>
+              </div>
+              ${errBlock}
+            </div>
+          `;
+          continue;
+        }
+        const rub = item.rubric_evaluation || {};
+        const l1 = rub.layer1_music_understanding || {};
+        const l2 = rub.layer2_visual_narrative || {};
+        const l3 = rub.layer3_production_feasibility || {};
+        const dims = rub.dimensions || {};
+        const dScore = (k) => (dims[k] && dims[k].score_10 !== undefined) ? dims[k].score_10 : '—';
+
+        if (t.isStoryline || item.is_storyline_track) {
+          const out = item.analysis_output || {};
+          const diag = out.music_lyric_melody_diagnosis || {};
+          const guard = out.character_and_scene_guardrails || {};
+          const arc = out.four_act_story_arc || {};
+          const prog = arc.chorus_contextual_progression || {};
+          const optList = rub.optimization_diagnostics || [];
+          const optCards = optList.map(d => `
+            <div style="background:#0b1120; border-left:3px solid #f59e0b; padding:8px 10px; border-radius:6px; margin-bottom:6px; font-size:12px; line-height:1.5;">
+              <div><strong style="color:#fcd34d;">📍 哪里需要优化: ${d.target_where || ''}</strong> <span class="badge badge-amber">${d.severity || 'OPTIMIZE'}</span></div>
+              <div style="color:#fda4af; margin-top:3px;"><strong>⚠️ 当前问题:</strong> ${d.problem_what || ''}</div>
+              <div style="color:#e2e8f0; margin-top:3px;"><strong>❓ 为什么需要优化 (对比原歌曲词曲情绪):</strong> ${d.why_from_song_comparison || ''}</div>
+              <div style="color:#6ee7b7; margin-top:3px;"><strong>💡 具体优化改法:</strong> ${d.how_to_optimize || ''}</div>
+            </div>
+          `).join('');
+
+          bodyHtml += `
+            <div class="card" style="background:var(--panel2); ${isFocus}">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong>${t.name}</strong>
+                <div>歌曲对比总分: ${scoreBadge(rub.overall_weighted_score)} <span class="badge badge-emerald">${rub.grade || ''}</span></div>
+              </div>
+              <div style="font-size:12px; color:#cbd5e1; margin-bottom:8px;">
+                <strong>⚖️ Storyline vs 原歌曲对比总评:</strong> ${rub.song_vs_storyline_comparison_verdict || rub.executive_verdict || '—'}
+              </div>
+              <div style="font-size:11.5px; color:var(--muted); margin-bottom:10px; line-height:1.6;">
+                <strong>6大对齐维度得分:</strong>
+                旋律弧光 ${dScore('S1_melody_emotion_arc')}/10 |
+                歌词母题转译 ${dScore('S2_lyric_subtext_translation')}/10 |
+                副歌同词不同境递进 ${dScore('S3_chorus_progression_anti_repeat')}/10 |
+                曲式时间码&间奏 ${dScore('S4_rhythm_timecode_interlude_sync')}/10 |
+                人物场景硬约束锁 ${dScore('S5_character_scene_constraint_lock')}/10 |
+                可拍性与视觉符号 ${dScore('S6_shootability_and_visual_motif')}/10
+              </div>
+              <div style="margin-bottom:10px;">
+                <div style="font-weight:700; color:#fcd34d; font-size:12.5px; margin-bottom:6px;">🔍 哪里需要优化 & 为什么 (对比原歌曲专项诊断):</div>
+                ${optCards || '<div style="color:var(--muted); font-size:12px;">无额外优化项</div>'}
+              </div>
+              <div style="background:#0b1120; padding:10px; border-radius:6px; margin-bottom:10px; font-size:12px; line-height:1.55;">
+                <div><strong>🎬 四幕故事线 (Logline):</strong> ${arc.logline || '—'}</div>
+                <div style="margin-top:4px;"><strong>🔑 核心视觉符号 (Motif):</strong> <span style="color:#93c5fd;">${guard.core_visual_motif || '—'}</span> | <strong>叙事模式:</strong> <code>${diag.narrative_mode || ''}</code></div>
+                <div style="margin-top:4px;"><strong>Act 1 开场:</strong> ${arc.act1_opening_hook || '—'}</div>
+                <div style="margin-top:3px;"><strong>Act 2 递进:</strong> ${arc.act2_mid_development || '—'}</div>
+                <div style="margin-top:3px;"><strong>Act 3 高潮:</strong> ${arc.act3_climax_escalation || '—'}</div>
+                <div style="margin-top:3px;"><strong>Act 4 余韵:</strong> ${arc.act4_ending_resonance || '—'}</div>
+                <div style="margin-top:5px; color:#6ee7b7;"><strong>🔄 副歌同词不同境:</strong> C1[${prog.chorus_1_treatment||''}] → C2[${prog.chorus_2_treatment||''}] → Final[${prog.final_chorus_treatment||''}]</div>
+              </div>
+              <details>
+                <summary style="cursor:pointer; font-weight:700; color:#93c5fd; margin-bottom:6px;">📄 完整 MV Storyline 输出 JSON (含时间码段落表)</summary>
+                <pre>${JSON.stringify(item.analysis_output, null, 2)}</pre>
+              </details>
+              <details style="margin-top:6px;">
+                <summary style="cursor:pointer; font-weight:700; color:#6ee7b7; margin-bottom:6px;">⚖️ Storyline vs 原歌曲对比打分与优化诊断 JSON</summary>
+                <pre>${JSON.stringify(item.rubric_evaluation, null, 2)}</pre>
+              </details>
+            </div>
+          `;
+          continue;
+        }
+
+        bodyHtml += `
+          <div class="card" style="background:var(--panel2); ${isFocus}">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong>${t.name}</strong>
+              <div>总分: ${scoreBadge(rub.overall_weighted_score)} <span class="badge badge-indigo">${rub.grade || ''}</span></div>
+            </div>
+            <div style="font-size:12px; color:#cbd5e1; margin-bottom:8px;">
+              <strong>裁判总评:</strong> ${rub.executive_verdict || rub.overall_verdict || '—'}
+            </div>
+            <div style="font-size:11.5px; color:var(--muted); margin-bottom:8px; line-height:1.6;">
+              <strong>L1 质量与稳定性 (${l1.layer_score_100||'—'}):</strong> 人物一致性 ${dScore('L1_1_character_consistency')}/10 | 动作可信度 ${dScore('L1_2_body_action_plausibility')}/10 | 场景空间 ${dScore('L1_3_scene_spatial_consistency')}/10 | 时序稳定 ${dScore('L1_4_visual_temporal_stability')}/10<br/>
+              <strong>L2 音乐与内容表达 (${l2.layer_score_100||'—'}):</strong> 音画节奏 ${dScore('L2_1_audio_visual_rhythm')}/10 | 口型演唱 ${dScore('L2_2_lip_sync_vocal_performance')}/10 | 风格情绪 ${dScore('L2_3_music_style_emotion')}/10 | 歌词主题 ${dScore('L2_4_lyrics_theme_expression')}/10<br/>
+              <strong>L3 审美与记忆点 (${l3.layer_score_100||'—'}):</strong> 视觉美学 ${dScore('L3_1_visual_aesthetics')}/10 | 镜头语言 ${dScore('L3_2_camera_language')}/10 | 结构发展 ${dScore('L3_3_structure_development')}/10 | 剪辑完成度 ${dScore('L3_4_editing_completeness')}/10 | 创意记忆点 ${dScore('L3_5_creativity_memorability')}/10
+            </div>
+            <details open>
+              <summary style="cursor:pointer; font-weight:700; color:#93c5fd; margin-bottom:6px;">📄 模型分析输出 JSON</summary>
+              <pre>${JSON.stringify(item.analysis_output, null, 2)}</pre>
+            </details>
+            <details style="margin-top:6px;">
+              <summary style="cursor:pointer; font-weight:700; color:#6ee7b7; margin-bottom:6px;">⚖️ 《MV评判规则》13维度详细打分 JSON</summary>
+              <pre>${JSON.stringify(item.rubric_evaluation, null, 2)}</pre>
+            </details>
+          </div>
+        `;
+      }
+      bodyHtml += `</div>`;
+      document.getElementById('drawer-body').innerHTML = bodyHtml;
+      document.getElementById('sample-drawer-overlay').classList.add('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('sample-drawer-overlay').classList.remove('open');
+    }
+
+    async function openDebugLogsDrawer() {
+      document.getElementById('debug-drawer-overlay').classList.add('open');
+      await refreshDebugLogsDrawer();
+    }
+
+    function closeDebugLogsDrawer() {
+      document.getElementById('debug-drawer-overlay').classList.remove('open');
+    }
+
+    async function clearDebugLogs() {
+      await fetch('/api/v2/debug/clear_logs', { method: 'POST' });
+      await refreshDebugLogsDrawer();
+    }
+
+    async function refreshDebugLogsDrawer() {
+      const container = document.getElementById('debug-drawer-body');
+      try {
+        const resp = await fetch(`/api/v2/debug/logs?limit=300&t=${Date.now()}`);
+        const data = await resp.json();
+        const diag = data.diagnostics || {};
+        const eff = diag.effective_storage || {};
+        const envVars = diag.env_vars || {};
+        const samplesCheck = diag.samples_check || [];
+        const logs = data.runtime_logs || [];
+
+        const sampleRows = samplesCheck.map(sc => {
+          const fMap = sc.files || {};
+          const fBadges = Object.keys(fMap).map(fn => {
+            const info = fMap[fn];
+            if (info.local_exists) {
+              const kb = (info.size_bytes / 1024).toFixed(1);
+              return `<span class="badge badge-emerald" title="${info.local_path}">✓ ${fn} (${kb}KB)</span>`;
+            }
+            return `<span class="badge badge-rose" title="本地未找到，运行时将尝试从 GCS (${eff.gcs_bucket||'未设'}) 或 Drive (${info.drive_file_id||'无'}) 拉取">✗ ${fn} (本地缺失)</span>`;
+          }).join(' ');
+          const traceStr = (sc.last_resolution_trace && sc.last_resolution_trace.length)
+            ? `<div style="font-size:11px; color:var(--muted); margin-top:4px;">最近解析轨迹: <code>${sc.last_resolution_trace.join(' → ')}</code></div>`
+            : '';
+          return `
+            <tr>
+              <td><strong>#${sc.sample_id}</strong></td>
+              <td>${sc.title}</td>
+              <td>${fBadges}${traceStr}</td>
+            </tr>
+          `;
+        }).join('');
+
+        const formattedLogs = logs.length
+          ? logs.map(l => {
+              const tb = l.traceback ? `\n${l.traceback}` : '';
+              return `${l.formatted}${tb}`;
+            }).join('\n')
+          : '暂无运行日志记录（点击运行任意评测轨道后此处将实时显示完整步骤与错误堆栈）。';
+
+        container.innerHTML = `
+          <div class="grid-3" style="margin-bottom:14px;">
+            <div class="metric-box">
+              <div class="metric-label">📂 运行时数据目录 (DATA_DIR / SAMPLES_DIR)</div>
+              <div style="font-size:12px; font-weight:700; margin-top:4px; color:#93c5fd; word-break:break-all;">${diag.data_dir || '—'}</div>
+              <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+                DATA_DIR 内容: <code>${(diag.data_dir_listing || []).join(', ') || '(空)'}</code><br/>
+                SAMPLES_DIR 子目录: <code>${(diag.samples_dir_listing || []).join(', ') || '(空)'}</code>
+              </div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">☁️ GCS Bucket & 多源存储状态</div>
+              <div style="font-size:13px; font-weight:700; margin-top:4px; color:#6ee7b7;">
+                Mode: ${eff.asset_storage_mode || 'auto'} | Bucket: ${eff.gcs_bucket || '⚠️ 未配置 (为空)'}
+              </div>
+              <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+                GCS Prefix: <code>${eff.gcs_prefix || '(空)'}</code><br/>
+                ENV ARGON_GCS_BUCKET: <code>${envVars.ARGON_GCS_BUCKET || '(未设置)'}</code><br/>
+                Cloud Run Revision: <code>${envVars.K_REVISION || '本地进程'}</code>
+              </div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">🎵 本地/挂载卷已就绪音频样本数</div>
+              <div class="metric-val" style="color:${eff.ready_audio_samples_count === '10/10' ? '#34d399' : '#fbbf24'};">${eff.ready_audio_samples_count || '0/10'}</div>
+              <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+                若在 Cloud Run 使用 GCS，请确保部署时传入 <code>ARGON_GCS_BUCKET=你的桶名</code> 或在配置中心填写 GCS Bucket 名称。
+              </div>
+            </div>
+          </div>
+
+          <details style="margin-bottom:14px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+            <summary style="cursor:pointer; font-weight:700; color:#93c5fd;">📦 展开查看 01–10 样本本地/FUSE挂载文件逐一核验表与最近解析轨迹</summary>
+            <div style="overflow-x:auto; margin-top:10px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:65px;">样本</th>
+                    <th style="width:260px;">标题</th>
+                    <th>文件就绪状态 & 最近解析轨迹</th>
+                  </tr>
+                </thead>
+                <tbody>${sampleRows}</tbody>
+              </table>
+            </div>
+          </details>
+
+          <div class="card" style="background:var(--panel2); margin-bottom:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong>📜 后端实时结构化日志流 (<code>${diag.runtime_log_path || 'runtime_debug.log'}</code>，最近 ${logs.length} 条)</strong>
+              <span class="badge badge-amber">包含完整 Error & Python Traceback</span>
+            </div>
+            <pre style="max-height:460px; font-size:11.5px; line-height:1.5; background:#050811;">${formattedLogs.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+          </div>
+        `;
+      } catch (e) {
+        container.innerHTML = `<div style="color:#fda4af;">加载调试日志失败: ${e.message}</div>`;
+      }
+    }
+
+
+    function toggleSingleMvCreatorPanel() {
+      const el = document.getElementById('single-mv-creator-panel');
+      if (!el) return;
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function renderMvStudioTab() {
+      if (!STATE) return;
+      const cfg = STATE.config || {};
+      const tm = cfg.tab_models || {};
+      const proj = cfg.project || {};
+
+      const pillEl = document.getElementById('cfg-pill-mv-studio');
+      if (pillEl) {
+        const dirM = (tm.tab6_mv_director && tm.tab6_mv_director.model) || 'gemini-4-argon';
+        const imgM = (tm.tab6_first_frame_imagen && tm.tab6_first_frame_imagen.model) || 'gemini-nano-banana-2.1';
+        const omniM = (tm.tab6_omni_video && tm.tab6_omni_video.model) || 'gemini-omni-1.1-flash-preview';
+        pillEl.innerHTML = `📌 当前 V2.3 流水线模型: 分镜与音画口型导演 <code>${dirM}</code> | 首帧定妆 <code>${imgM}</code> | 视频生成 <code>${omniM}</code> | 对齐控制: <code>24fps DSP + F0基频性别 + Omni [MM:SS.mmm]</code> | Project: <code>${proj.project_id || 'genai-dnb-demo'}</code>`;
+      }
+
+      const qbox = document.getElementById('mv-director-prompt-quick-box');
+      if (qbox && cfg.prompts && cfg.prompts.mv_storyboard_director_prompt) {
+        qbox.value = DRAFT_PROMPTS['mv_storyboard_director_prompt'] || cfg.prompts.mv_storyboard_director_prompt;
+      }
+
+      // Populate single-sample selector
+      const selSingle = document.getElementById('single-mv-sample-select');
+      if (selSingle && STATE.samples) {
+        const prevVal = selSingle.value || '01';
+        selSingle.innerHTML = STATE.samples.map(s => `<option value="${s.sample_id}">#${s.sample_id} — ${s.title}</option>`).join('');
+        if (STATE.samples.some(s => s.sample_id === prevVal)) {
+          selSingle.value = prevVal;
+        }
+      }
+
+      const mvTrack = (STATE.tracks && STATE.tracks['track6_mv_studio'] && STATE.tracks['track6_mv_studio'].samples) || {};
+      const totalSamples = (STATE.samples || []).length;
+      let completedCount = 0;
+      let planReadyCount = 0;
+      let totalActsCount = 0;
+      let totalSubCues = 0;
+
+      for (const sid of Object.keys(mvTrack)) {
+        const rec = mvTrack[sid];
+        if (!rec) continue;
+        if (rec.status === 'completed') completedCount++;
+        if (rec.status === 'plan_ready' || rec.status === 'completed') {
+          planReadyCount++;
+          totalActsCount += Number(rec.num_acts || (rec.mv_plan && rec.mv_plan.acts ? rec.mv_plan.acts.length : 0));
+          totalSubCues += Number((rec.subtitle_cues || []).length);
+        }
+      }
+
+      const sumEl = document.getElementById('summary-mv-studio');
+      if (sumEl) {
+        sumEl.innerHTML = `
+          <div class="metric-box">
+            <div class="metric-label">已完成分镜规划 / 已合流成片 MV 数</div>
+            <div class="metric-val" style="color:#6ee7b7;">${planReadyCount} 规划 / ${completedCount} 成片 <span style="font-size:12px; color:var(--muted);">(共 ${totalSamples} 首)</span></div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">累计生成 10s 分镜幕数 (Acts)</div>
+            <div class="metric-val" style="color:#a5b4fc;">${totalActsCount} 幕 <span style="font-size:12px; color:var(--muted);">(${totalActsCount * 10}s 视频)</span></div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">24fps 毫秒级同步字幕总条数 (.srt/.vtt)</div>
+            <div class="metric-val" style="color:#fcd34d;">${totalSubCues} 条</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">口型与节奏控制引擎</div>
+            <div style="font-size:12.5px; font-weight:700; color:#67e8f9; margin-top:6px;">
+              24fps DSP (220-3600Hz) × Omni [MM:SS.mmm]
+            </div>
+          </div>
+        `;
+      }
+
+      const tbody = document.getElementById('tbody-mv-studio');
+      if (!tbody) return;
+      let html = '';
+
+      for (const s of STATE.samples) {
+        const sid = s.sample_id;
+        const item = mvTrack[sid];
+        const status = item ? item.status : 'not_run';
+        const plan = (item && item.mv_plan) || {};
+        const acts = plan.acts || [];
+        const vprof = (item && item.vocal_gender_profile) || {};
+        const subCues = (item && item.subtitle_cues) || [];
+
+        let statusHtml = '<span class="badge">待生成 MV</span>';
+        const dispDur = item ? (item.exact_mv_duration_sec || item.target_duration_sec || 20) : 20;
+        const dispActs = item ? (item.num_acts || acts.length || 2) : 2;
+        const fullTag = (item && item.is_full_song) ? '🎵全曲等长 ' : '';
+        if (status === 'completed') {
+          statusHtml = `<span class="badge badge-emerald">✓ MV 已合成 (${fullTag}${dispDur}s · ${dispActs}幕)</span>`;
+        } else if (status === 'plan_ready') {
+          statusHtml = `<span class="badge badge-amber">📝 分镜与首帧已就绪 (${fullTag}${dispDur}s · ${dispActs}幕)</span>`;
+        } else if (status === 'error') {
+          const shortErr = (item.error || '执行异常').split('\n')[0].slice(0, 90);
+          statusHtml = `
+            <span class="badge badge-rose" style="cursor:pointer;" onclick="openMvStudioDrawer('${sid}')">✕ 失败 (${item.error_type || 'Error'})</span>
+            <div style="color:#fda4af; font-size:11px; margin-top:4px; word-break:break-word;">${shortErr}</div>
+          `;
+        }
+
+        if (vprof.locked_lead_gender || item?.mv_performance_mode) {
+          const leadChar = plan.lead_character || {};
+          const suppChar = plan.supporting_character || {};
+          const pMode = item.mv_performance_mode || vprof.mv_performance_mode || 'solo_vocal_lipsync';
+          const pModeTag = pMode === 'pure_story_cinematic'
+            ? '<span class="badge badge-amber" style="margin-top:5px;">🎬 纯故事·无需对嘴</span>'
+            : (pMode === 'duet_chorus_lipsync'
+                ? '<span class="badge badge-cyan" style="margin-top:5px;">🎭 合唱/对唱分角对嘴</span>'
+                : '<span class="badge badge-indigo" style="margin-top:5px;">🎤 独唱精准对嘴</span>');
+          statusHtml += `
+            <div>${pModeTag}</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:5px; line-height:1.45;">
+              🎤 主角锁: <strong style="color:#93c5fd;">${(vprof.locked_lead_gender || '').toUpperCase()}</strong> (${leadChar.name_cn || 'Lead'})<br/>
+              🎶 配角锁: <strong>${(vprof.locked_support_gender || '').toUpperCase()}</strong> (${suppChar.singing_permission === 'forbidden_silent_acting' ? '禁开口仅演戏' : '合唱/轮唱对嘴'})<br/>
+              ⏱️ 耗时: ${item.total_elapsed_sec || '—'}s
+            </div>
+          `;
+        }
+
+        // Storyboard & 24fps Lip-sync summary
+        let planHtml = '<span style="color:var(--muted); font-size:12px;">点击上方「一键并行批量生成」或右侧「单曲生成 MV」自动规划全曲分镜、分析不同角色/性别词曲节奏并生成 MV</span>';
+        if ((status === 'completed' || status === 'plan_ready') && acts.length) {
+          const pMode = (item && item.mv_performance_mode) || vprof.mv_performance_mode || 'solo_vocal_lipsync';
+          const renderActBox = a => {
+            const mbs = a.micro_beats || [];
+            const mbTags = mbs.map(mb => {
+              const isVoc = mb.is_vocal_open_mouth;
+              const f0Str = mb.est_f0_hz && mb.est_f0_hz > 0 ? ` ${Math.round(mb.est_f0_hz)}Hz` : '';
+              const cadShort = mb.rhythm_cadence === 'fast_syncopated_staccato' ? '⚡快切' : (mb.rhythm_cadence === 'slow_sustained_legato' ? '🌊抒情长音' : (mb.rhythm_cadence === 'mid_melodic_pop' ? '🎵中速律动' : '🥁器乐节拍'));
+              let badgeCls = 'badge-indigo';
+              let spkTag = `🔒闭嘴 (${cadShort})`;
+              if (pMode === 'pure_story_cinematic') {
+                badgeCls = 'badge-amber';
+                spkTag = `🎬纯故事演戏 (${cadShort})`;
+              } else if (isVoc) {
+                badgeCls = mb.active_speaker === 'BOTH' ? 'badge-cyan' : (mb.active_speaker === 'SUPPORT' ? 'badge-amber' : 'badge-emerald');
+                spkTag = `🎤${mb.active_speaker}${f0Str} (${cadShort})`;
+              }
+              return `<span class="badge ${badgeCls}" style="font-size:10.5px; margin-right:3px; margin-bottom:3px;" title="${mb.sung_lyrics || mb.subtitle_text || ''}">[${mb.mm_ss_mmm_start || '00:00.000'}→${mb.mm_ss_mmm_end || '00:10.000'}] ${spkTag} (${mb.roll_type || 'A_ROLL'})</span>`;
+            }).join('');
+            return `
+              <div style="background:#0b1120; border-left:3px solid #6366f1; padding:6px 8px; border-radius:5px; margin-bottom:6px; font-size:11.5px;">
+                <div style="font-weight:700; color:#e2e8f0;">${a.act_title_cn || ('Act ' + a.act_index)} <span style="color:var(--muted); font-weight:400;">(${a.global_start_sec}s–${a.global_end_sec}s)</span></div>
+                <div style="margin-top:4px;">${mbTags}</div>
+              </div>
+            `;
+          };
+          const headActs = acts.slice(0, 4).map(renderActBox).join('');
+          const tailActs = acts.length > 4
+            ? `<details style="margin-top:4px;"><summary style="cursor:pointer; font-size:11.5px; color:#a5b4fc; font-weight:700;">➕ 展开查看剩余 ${acts.length - 4} 幕全曲分镜 (Act 5 ~ Act ${acts.length})</summary><div style="margin-top:6px;">${acts.slice(4).map(renderActBox).join('')}</div></details>`
+            : '';
+          planHtml = `
+            <div style="font-size:12px; margin-bottom:6px;">
+              <strong>🎯 故事线:</strong> ${plan.storyline_logline || '—'}
+              <span class="badge badge-cyan" style="margin-left:4px;">Motif: ${plan.core_visual_motif || '—'}</span>
+            </div>
+            ${headActs}${tailActs}
+          `;
+        }
+
+        // First frames & shot videos
+        let shotsHtml = '<span style="color:var(--muted); font-size:12px;">—</span>';
+        if (item && item.shot_first_frame_urls && item.shot_first_frame_urls.length) {
+          const ffUrls = item.shot_first_frame_urls || [];
+          const vidUrls = item.shot_video_urls || [];
+          const renderShotCard = (u, idx) => {
+            const vUrl = vidUrls[idx] || '';
+            return `
+              <div style="background:#0b1120; border:1px solid var(--border); border-radius:6px; padding:5px; width:108px; text-align:center;">
+                <a href="${u}" target="_blank" title="点击查看第 ${idx+1} 幕起始首帧 (<FIRST_FRAME>)">
+                  <img src="${u}?t=${encodeURIComponent(item.evaluated_at||'')}" style="width:96px; height:56px; object-fit:cover; border-radius:4px; border:1px solid #334155;" />
+                </a>
+                <div style="font-size:10.5px; font-weight:700; color:#cbd5e1; margin-top:3px;">Act ${idx+1} (${idx*10}-${(idx+1)*10}s)</div>
+                ${vUrl ? `<a href="${vUrl}" target="_blank" style="font-size:10.5px; color:#6ee7b7; text-decoration:none;">▶️ 分镜视频</a>` : `<span style="font-size:10px; color:var(--muted);">首帧已就绪</span>`}
+              </div>
+            `;
+          };
+          const headShots = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + ffUrls.slice(0, 6).map((u, i) => renderShotCard(u, i)).join('') + `</div>`;
+          const tailShots = ffUrls.length > 6
+            ? `<details style="margin-top:6px;"><summary style="cursor:pointer; font-size:11px; color:#67e8f9; font-weight:700;">🎞️ 展开全部 ${ffUrls.length} 幕首帧与分镜视频</summary><div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">${ffUrls.slice(6).map((u, i) => renderShotCard(u, i + 6)).join('')}</div></details>`
+            : '';
+          shotsHtml = headShots + tailShots;
+        }
+
+        // Final merged MV player
+        let finalMvHtml = '<span style="color:var(--muted); font-size:12px;">尚未合成最终 MV</span>';
+        const resolvedFinalVidUrl = (item && (item.final_video_url || item.final_clean_video_url))
+          || ((status === 'completed') ? `/api/v2/mv_studio/media/${sid}/final_mv_subtitled.mp4` : '');
+        const resolvedCleanVidUrl = (item && item.final_clean_video_url)
+          || ((status === 'completed') ? `/api/v2/mv_studio/media/${sid}/final_mv_clean.mp4` : '');
+        if (resolvedFinalVidUrl) {
+          const cacheBust = encodeURIComponent((item && item.evaluated_at) || Date.now());
+          finalMvHtml = `
+            <div>
+              <video controls playsinline preload="metadata" style="width:245px; max-height:145px; border-radius:8px; background:#000; border:1px solid #334155;" src="${resolvedFinalVidUrl}?t=${cacheBust}">
+                ${(item && item.vtt_url) ? `<track kind="subtitles" srclang="zh" label="同步歌词字幕" src="${item.vtt_url}?t=${cacheBust}" default />` : ''}
+              </video>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:5px; font-size:11px;">
+                <a href="${resolvedFinalVidUrl}" target="_blank" style="color:#6ee7b7; text-decoration:none; font-weight:700;">⬇️ 字幕版 MV</a>
+                ${resolvedCleanVidUrl ? `<a href="${resolvedCleanVidUrl}" target="_blank" style="color:#93c5fd; text-decoration:none;">⬇️ 纯享版 MV</a>` : ''}
+                ${(item && item.srt_url) ? `<a href="${item.srt_url}" target="_blank" style="color:#fcd34d; text-decoration:none;">📄 .SRT字幕 (${subCues.length}条)</a>` : ''}
+              </div>
+            </div>
+          `;
+        } else if (status === 'plan_ready') {
+          const readyVideosCnt = ((item && item.shot_video_urls) || []).filter(Boolean).length;
+          finalMvHtml = `
+            <div style="font-size:11.5px; color:#fcd34d; margin-bottom:6px;">
+              ${readyVideosCnt > 0 ? `⏳ 已完成 ${readyVideosCnt}/${dispActs} 幕视频渲染，可打开右侧「工作台」逐幕预览` : `Phase 1 分镜与首帧已就绪（共 ${subCues.length} 条同步字幕）`}
+            </div>
+            <button class="btn btn-emerald" onclick="rerenderSampleMvFromPlan('${sid}', 'full_auto')">🎬 立即渲染并合并成片</button>
+          `;
+        }
+
+        const imgsThumb = (s.images || []).map(im => `<img src="${im.url}" style="width:28px; height:28px; object-fit:cover; border-radius:4px; border:1px solid var(--border);" title="${im.name}" />`).join(' ');
+
+        html += `
+          <tr>
+            <td><strong>#${sid}</strong></td>
+            <td>
+              <div style="font-weight:700;">${s.title}</div>
+              <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
+                ${imgsThumb}
+                <span class="badge badge-indigo">${s.genre}</span>
+              </div>
+              <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+                Storyline源: <code>${(item && item.storyline_source_used) || '自动关联 #5'}</code>
+              </div>
+            </td>
+            <td>${statusHtml}</td>
+            <td>${planHtml}</td>
+            <td>${shotsHtml}</td>
+            <td>${finalMvHtml}</td>
+            <td>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <button class="btn" onclick="openMvStudioDrawer('${sid}')">🎬 分镜/口型/字幕工作台</button>
+                <button class="btn btn-primary" onclick="runSingleSampleMv('${sid}')">▶️ 生成/重跑此 MV</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = html;
+    }
+
+    function collectMvStudioParams() {
+      const startVal = document.getElementById('mv-audio-start-sec').value.trim();
+      const rawDur = document.getElementById('mv-target-duration').value;
+      const parsedDur = rawDur !== '' && rawDur !== null && rawDur !== undefined ? parseInt(rawDur, 10) : 0;
+      return {
+        storyline_source: document.getElementById('mv-storyline-source').value,
+        target_duration_sec: isNaN(parsedDur) ? 0 : parsedDur,
+        mv_performance_mode: document.getElementById('mv-performance-mode').value,
+        shot_continuity_mode: document.getElementById('mv-continuity-mode').value,
+        execution_mode: document.getElementById('mv-execution-mode').value,
+        aspect_ratio: document.getElementById('mv-aspect-ratio').value,
+        burn_subtitles: document.getElementById('mv-burn-subtitles').value === 'true',
+        audio_start_sec: startVal !== '' ? parseFloat(startVal) : null,
+        max_workers: parseInt(document.getElementById('workers-mv-studio').value || '2', 10)
+      };
+    }
+
+    async function runMvStudioBatch(forceRerun) {
+      const params = collectMvStudioParams();
+      params.force_rerun = Boolean(forceRerun);
+      const resp = await fetch('/api/v2/mv_studio/run_batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      const data = await resp.json();
+      if (data.job_id) {
+        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
+      }
+    }
+
+    async function runSingleSampleMv(sampleId) {
+      const params = collectMvStudioParams();
+      params.sample_ids = [sampleId];
+      params.max_workers = 1;
+      params.force_rerun = true;
+      const resp = await fetch('/api/v2/mv_studio/run_batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      const data = await resp.json();
+      if (data.job_id) {
+        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
+      }
+    }
+
+    async function runSingleSampleMvFromSelector() {
+      const sid = document.getElementById('single-mv-sample-select').value || '01';
+      await runSingleSampleMv(sid);
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(String(e.target.result).split(',')[1] || '');
+        reader.onerror = err => reject(err);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function createAndRunCustomSingleMv() {
+      const img1Input = document.getElementById('custom-mv-img1');
+      const img2Input = document.getElementById('custom-mv-img2');
+      const audInput = document.getElementById('custom-mv-audio');
+      const statusEl = document.getElementById('custom-mv-upload-status');
+
+      if (!img1Input.files || !img1Input.files.length) {
+        alert('请至少选择 1 张主角/封面参考图 (支持 JPG/PNG)！');
+        return;
+      }
+      if (!audInput.files || !audInput.files.length) {
+        alert('请上传歌曲音频文件 (.mp3/.wav/.m4a)，以便自动分析 24fps 时间戳与角色词曲节奏控制 Omni！');
+        return;
+      }
+      statusEl.textContent = '⏳ 正在上传素材并初始化单曲 MV 流水线...';
+      try {
+        const img1B64 = await readFileAsBase64(img1Input.files[0]);
+        const img2B64 = (img2Input.files && img2Input.files.length) ? await readFileAsBase64(img2Input.files[0]) : '';
+        const audB64 = (audInput.files && audInput.files.length) ? await readFileAsBase64(audInput.files[0]) : '';
+        const params = collectMvStudioParams();
+
+        const payload = Object.assign({}, params, {
+          title: document.getElementById('custom-mv-title').value.trim() || img1Input.files[0].name,
+          language: document.getElementById('custom-mv-lang').value,
+          prompt_text: document.getElementById('custom-mv-prompt').value.trim(),
+          image1_b64: img1B64,
+          image2_b64: img2B64,
+          audio_b64: audB64
+        });
+
+        const resp = await fetch('/api/v2/mv_studio/create_custom_single', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          statusEl.textContent = '❌ 创建失败: ' + (data.detail || resp.statusText);
+          return;
+        }
+        statusEl.textContent = `✅ 已创建自定义样本 #${data.sample_id}，正在生成 MV...`;
+        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
+        statusEl.textContent = `🎉 自定义样本 #${data.sample_id} MV 生成完成！`;
+      } catch (err) {
+        statusEl.textContent = '❌ 异常: ' + err.message;
+      }
+    }
+
+    async function saveEditedMvDirectorPrompt() {
+      const txt = document.getElementById('mv-director-prompt-quick-box').value;
+      DRAFT_PROMPTS['mv_storyboard_director_prompt'] = txt;
+      await fetch('/api/v2/save_mv_director_prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mv_storyboard_director_prompt: txt })
+      });
+      await reloadFromDisk();
+      alert('已保存 V2.3 MV 毫秒级分镜规划与口型/节奏对齐提示词！');
+    }
+
+    function openMvStudioDrawer(sampleId) {
+      const s = (STATE.samples || []).find(x => x.sample_id === sampleId);
+      const mvTrack = (STATE.tracks && STATE.tracks['track6_mv_studio'] && STATE.tracks['track6_mv_studio'].samples) || {};
+      const item = mvTrack[sampleId];
+      document.getElementById('mv-drawer-title').textContent = `🎥 样本 #${sampleId} — ${s ? s.title : sampleId} · MV 全链路分镜与字幕同步工作台`;
+      document.getElementById('mv-drawer-subtitle').textContent = item
+        ? `演绎模式: ${item.mv_performance_mode_label || item.mv_performance_mode || '自动'} | Storyline源: ${item.storyline_source_used || '自动'} | 时长: ${item.is_full_song ? '🎵全曲等长 ' : ''}${item.exact_mv_duration_sec || item.target_duration_sec || 20}s (${item.num_acts || 2}幕×10s自动分镜) | 状态: ${item.status}`
+        : '尚未运行 V2.3 MV 生成流水线';
+
+      const bodyEl = document.getElementById('mv-drawer-body');
+      if (!item) {
+        bodyEl.innerHTML = `
+          <div class="card" style="background:var(--panel2);">
+            <div style="margin-bottom:10px;">该样本尚未执行 V2.3 MV 生成。点击下方按钮立即启动：</div>
+            <button class="btn btn-primary" onclick="closeMvStudioDrawer(); runSingleSampleMv('${sampleId}');">🚀 立即生成 Sample #${sampleId} MV</button>
+          </div>
+        `;
+        document.getElementById('mv-studio-drawer-overlay').classList.add('open');
+        return;
+      }
+
+      if (item.status === 'error') {
+        bodyEl.innerHTML = `
+          <div class="card" style="background:rgba(244,63,94,0.1); border-color:rgba(244,63,94,0.4);">
+            <div style="font-weight:700; color:#fb7185; margin-bottom:6px;">❌ 执行失败 [${item.error_stage || 'MV_STAGE'}] (${item.error_type || 'Error'})</div>
+            <pre style="color:#fda4af;">${item.error || ''}</pre>
+            ${item.traceback ? `<details open style="margin-top:8px;"><summary style="cursor:pointer; color:#fcd34d;">完整 Python Traceback</summary><pre>${item.traceback}</pre></details>` : ''}
+            <div style="margin-top:10px;">
+              <button class="btn btn-primary" onclick="closeMvStudioDrawer(); runSingleSampleMv('${sampleId}');">↻ 重新运行此样本 MV</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('mv-studio-drawer-overlay').classList.add('open');
+        return;
+      }
+
+      const plan = item.mv_plan || {};
+      const acts = plan.acts || [];
+      const leadC = plan.lead_character || {};
+      const suppC = plan.supporting_character || {};
+      const subCues = item.subtitle_cues || [];
+      const cacheBust = encodeURIComponent(item.evaluated_at || Date.now());
+
+      const actCardsHtml = acts.map((act, idx) => {
+        const ffUrl = (item.shot_first_frame_urls && item.shot_first_frame_urls[idx]) || act.first_frame_url || '';
+        const vidUrl = (item.shot_video_urls && item.shot_video_urls[idx]) || act.shot_video_url || '';
+        const compPrompt = (item.compiled_omni_prompts && item.compiled_omni_prompts[idx]) || act.compiled_omni_prompt || '';
+        const dspWins = (item.dsp_windows_per_act && item.dsp_windows_per_act[idx]) || [];
+        const dspStr = dspWins.map(w => {
+          const f0Tag = w.est_f0_hz ? `(${Math.round(w.est_f0_hz)}Hz·${w.acoustic_gender_hint || 'vocal'}·${w.rhythm_cadence || ''})` : '';
+          return `[${w.mm_ss_mmm_start}→${w.mm_ss_mmm_end}] ${w.is_vocal_active ? ('🎤VOCAL_OPEN' + f0Tag) : '🔒INSTRUMENTAL_CLOSED'}`;
+        }).join(' | ');
+
+        const mbRows = (act.micro_beats || []).map(mb => `
+          <tr>
+            <td>
+              <code>[${mb.mm_ss_mmm_start} → ${mb.mm_ss_mmm_end}]</code>
+              <div style="font-size:10.5px; color:#67e8f9; margin-top:2px;">
+                ${mb.est_f0_hz ? `基频: ${Math.round(mb.est_f0_hz)}Hz (${mb.acoustic_gender_hint || '—'})` : '器乐/纯叙事'} | 律动: <code>${mb.rhythm_cadence || '—'}</code>
+              </div>
+            </td>
+            <td><span class="badge ${mb.is_vocal_open_mouth ? 'badge-emerald' : 'badge-indigo'}">${mb.is_vocal_open_mouth ? ('🎤 ' + mb.active_speaker + ' 张嘴对嘴') : (item.mv_performance_mode === 'pure_story_cinematic' ? '🎬 纯故事不对嘴 (NONE)' : '🔒 器乐闭嘴 (NONE)')}</span></td>
+            <td><span class="badge badge-cyan">${mb.roll_type || 'A_ROLL'}</span><div style="font-size:11px; color:var(--muted); margin-top:2px;">${mb.camera_and_shot_cn || ''}</div></td>
+            <td style="font-size:11.5px;">
+              <div><strong>Lead:</strong> ${mb.lead_action_and_mouth_en || ''}</div>
+              <div style="color:var(--muted); margin-top:2px;"><strong>Support:</strong> ${mb.support_action_and_mouth_en || ''}</div>
+            </td>
+            <td style="color:#fcd34d; font-weight:600;">${mb.subtitle_text || '<span style="color:var(--muted); font-weight:400;">(器乐留白无字幕)</span>'}</td>
+          </tr>
+        `).join('');
+
+        return `
+          <div class="card" style="background:var(--panel2); margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+              <div>
+                <strong style="font-size:14px; color:#a5b4fc;">🎬 第 ${act.act_index} 幕: ${act.act_title_cn || ''} (${act.global_start_sec}s – ${act.global_end_sec}s)</strong>
+                <span class="badge badge-indigo" style="margin-left:6px;">原曲区间: ${act.song_source_start_sec || 0}s–${act.song_source_end_sec || 10}s</span>
+                ${act.render_engine ? `<span class="badge badge-emerald" style="margin-left:6px;">渲染引擎: ${act.render_engine}</span>` : ''}
+              </div>
+            </div>
+            <div style="font-size:11.5px; color:#67e8f9; margin-bottom:8px;">
+              <strong>🎚️ 24fps (41.667ms) DSP 220Hz–3600Hz 人声频带实测窗口:</strong> <code>${dspStr || '已对齐'}</code>
+            </div>
+
+            <div class="grid-2" style="margin-bottom:10px;">
+              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center;">
+                <div style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-bottom:6px;">🖼️ 本幕起始首帧 (<code>&lt;FIRST_FRAME&gt;image_0.png</code>)</div>
+                ${ffUrl ? `<img src="${ffUrl}?t=${cacheBust}" style="max-width:100%; max-height:210px; border-radius:6px; border:1px solid #334155;" />` : '<div style="color:var(--muted);">无首帧</div>'}
+              </div>
+              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center;">
+                <div style="font-size:11.5px; font-weight:700; color:#6ee7b7; margin-bottom:6px;">🎞️ 本幕 10.0s 独立分镜视频 (<code>shot_0${act.act_index}_10s.mp4</code>)</div>
+                ${vidUrl ? `<video controls preload="metadata" src="${vidUrl}?t=${cacheBust}" style="max-width:100%; max-height:210px; border-radius:6px; background:#000;"></video>` : '<div style="color:var(--muted); padding:40px 0;">当前为 Phase 1 规划模式，点击上方「按微调提示词渲染成片」即可生成视频</div>'}
+              </div>
+            </div>
+
+            <div style="overflow-x:auto; margin-bottom:8px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:155px;">24fps 时间戳 [MM:SS.mmm]</th>
+                    <th style="width:140px;">开口角色 &amp; 口型状态</th>
+                    <th style="width:170px;">A/B/C-Roll 景别与运镜</th>
+                    <th>角色动作与严格口型隔离指令 (Mouth Isolation)</th>
+                    <th style="width:200px;">同步字幕文本 (Subtitle)</th>
+                  </tr>
+                </thead>
+                <tbody>${mbRows}</tbody>
+              </table>
+            </div>
+
+            <details>
+              <summary style="cursor:pointer; font-size:12px; font-weight:700; color:#fcd34d;">
+                🛠️ 展开查看 / 微调第 ${act.act_index} 幕编译后的 Omni 1.1 Flash 原生 <code>[MM:SS.mmm]</code> 提示词 (<code># References</code> / <code># Sources</code> / <code># Descriptions</code> / <code># Transcriptions</code>)
+              </summary>
+              <textarea id="drawer-omni-prompt-${sampleId}-${idx}" rows="9" style="margin-top:6px; width:100%; font-family:monospace; font-size:11.5px;">${compPrompt}</textarea>
+            </details>
+          </div>
+        `;
+      }).join('');
+
+      const drawerFinalVidUrl = item.final_video_url || item.final_clean_video_url || (item.status === 'completed' ? `/api/v2/mv_studio/media/${sampleId}/final_mv_subtitled.mp4` : '');
+      const drawerCleanVidUrl = item.final_clean_video_url || (item.status === 'completed' ? `/api/v2/mv_studio/media/${sampleId}/final_mv_clean.mp4` : '');
+      bodyEl.innerHTML = `
+        <div class="grid-2" style="margin-bottom:14px;">
+          <div class="card" style="background:var(--panel2); margin-bottom:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong style="font-size:14px; color:#6ee7b7;">🎬 合并成品 MV (含毫秒级同步字幕烧录 + 母带音轨)</strong>
+              <div style="display:flex; gap:6px;">
+                ${drawerFinalVidUrl ? `<a class="btn btn-emerald" href="${drawerFinalVidUrl}" download="mv_${sampleId}_subtitled.mp4" style="text-decoration:none;">⬇️ 下载字幕版成片</a>` : ''}
+                ${drawerCleanVidUrl ? `<a class="btn" href="${drawerCleanVidUrl}" download="mv_${sampleId}_clean.mp4" style="text-decoration:none;">⬇️ 下载无字纯享版</a>` : ''}
+                ${item.srt_url ? `<a class="btn" href="${item.srt_url}" download="mv_${sampleId}.srt" style="text-decoration:none;">📄 下载 .SRT 字幕</a>` : ''}
+              </div>
+            </div>
+            ${drawerFinalVidUrl
+              ? `<video controls autoplay loop playsinline style="width:100%; max-height:340px; border-radius:8px; background:#000; border:1px solid #334155;" src="${drawerFinalVidUrl}?t=${cacheBust}">
+                   ${item.vtt_url ? `<track kind="subtitles" srclang="zh" label="同步字幕" src="${item.vtt_url}?t=${cacheBust}" default />` : ''}
+                 </video>`
+              : `<div style="padding:40px; text-align:center; color:var(--muted); border:1px dashed var(--border); border-radius:8px;">尚未完成全部幕合并，下方可实时预览已生成的各幕 10s 分镜视频，或点击右侧「按微调提示词重新渲染并合并 MV」</div>`
+            }
+          </div>
+
+          <div class="card" style="background:var(--panel2); margin-bottom:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong style="font-size:14px; color:#93c5fd;">🎙️ 声画性别闭环锁定 &amp; 主音轨 / 重绘控制台</strong>
+              <button class="btn btn-primary" onclick="rerenderSampleMvFromPlan('${sampleId}', 'full_auto')">🎬 按微调提示词重新渲染并合并 MV</button>
+            </div>
+            <div style="margin-bottom:10px;">
+              <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">🎵 匹配时长主音轨 (${item.audio_source_summary || ''}):</div>
+              <audio controls src="${item.master_audio_url}?t=${cacheBust}" style="width:100%; height:36px;"></audio>
+            </div>
+            <div class="grid-2" style="gap:10px; margin-bottom:10px;">
+              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; gap:10px; align-items:center;">
+                ${item.lead_character_url ? `<img src="${item.lead_character_url}?t=${cacheBust}" style="width:52px; height:52px; object-fit:cover; border-radius:6px;" />` : ''}
+                <div style="font-size:11.5px;">
+                  <div style="font-weight:700; color:#6ee7b7;">主角 <code>&lt;IMAGE_REF_0&gt;</code>: ${leadC.name_cn || 'Lead'} (${(leadC.gender || '').toUpperCase()})</div>
+                  <div style="color:var(--muted);">${leadC.matched_vocal_timbre_en || ''}</div>
+                </div>
+              </div>
+              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; gap:10px; align-items:center;">
+                ${item.supporting_character_url ? `<img src="${item.supporting_character_url}?t=${cacheBust}" style="width:52px; height:52px; object-fit:cover; border-radius:6px;" />` : ''}
+                <div style="font-size:11.5px;">
+                  <div style="font-weight:700; color:#fcd34d;">配角 <code>&lt;IMAGE_REF_1&gt;</code>: ${suppC.name_cn || 'Support'} (${(suppC.gender || '').toUpperCase()})</div>
+                  <div style="color:var(--muted);">演唱权限: ${suppC.singing_permission || 'allowed'}</div>
+                </div>
+              </div>
+            </div>
+            <div style="font-size:12px; line-height:1.55; background:#090d16; padding:8px 10px; border-radius:6px; border:1px solid var(--border);">
+              <div><strong>🎭 演绎与对嘴模式:</strong> <span style="color:#fcd34d; font-weight:700;">${item.mv_performance_mode_label || item.mv_performance_mode || '—'}</span></div>
+              <div><strong>🎯 继承 Storyline 主线:</strong> ${plan.storyline_logline || '—'}</div>
+              <div><strong>🔑 核心视觉符号 (Motif):</strong> <span style="color:#67e8f9;">${plan.core_visual_motif || '—'}</span></div>
+              <div><strong>📝 同步字幕轨 (.srt):</strong> 共 ${subCues.length} 条精确对齐至 24fps 时间窗口的字幕</div>
+            </div>
+          </div>
+        </div>
+
+        ${actCardsHtml}
+      `;
+      document.getElementById('mv-studio-drawer-overlay').classList.add('open');
+    }
+
+    function closeMvStudioDrawer() {
+      document.getElementById('mv-studio-drawer-overlay').classList.remove('open');
+    }
+
+    async function rerenderSampleMvFromPlan(sampleId, execMode) {
+      const mvTrack = (STATE.tracks && STATE.tracks['track6_mv_studio'] && STATE.tracks['track6_mv_studio'].samples) || {};
+      const item = mvTrack[sampleId];
+      const acts = (item && item.mv_plan && item.mv_plan.acts) || [];
+      const editedPrompts = [];
+      for (let i = 0; i < acts.length; i++) {
+        const el = document.getElementById(`drawer-omni-prompt-${sampleId}-${i}`);
+        if (el && el.value.trim()) {
+          editedPrompts.push(el.value.trim());
+        }
+      }
+      closeMvStudioDrawer();
+      const resp = await fetch('/api/v2/mv_studio/render_from_plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sample_id: sampleId,
+          compiled_omni_prompts: editedPrompts.length ? editedPrompts : null,
+          execution_mode: execMode || 'full_auto',
+          burn_subtitles: document.getElementById('mv-burn-subtitles').value === 'true'
+        })
+      });
+      const data = await resp.json();
+      if (data.job_id) {
+        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
+      }
+    }
+
+
+    window.addEventListener('DOMContentLoaded', reloadFromDisk);
+  </script>
+</body>
+</html>
