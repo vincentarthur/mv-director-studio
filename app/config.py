@@ -67,8 +67,6 @@ for _d in (SAMPLES_DIR, RUNS_V2_DIR, SNAPSHOTS_DIR):
     except OSError:
         pass
 
-GENERATE_BIN = "/google/bin/releases/gemini-cli/generate"
-GDRIVE_BIN = "/google/bin/releases/gemini-agents-gdrive/gdrive"
 APP_VERSION = "2.3.1"
 MODEL_FLASH_38 = "gemini-3.8-flash"
 MODEL_ARGON_4 = "gemini-4-argon"
@@ -1044,5 +1042,3 @@ def save_platform_config(new_cfg: dict[str, Any]) -> dict[str, Any]:
             except Exception:
                 pass
         return new_cfg
-
-

@@ -13,7 +13,7 @@
 # ==============================================================================
 set -euo pipefail
 
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-}"
+PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-your-gcp-project-id}"
 REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
 SERVICE_NAME="${SERVICE_NAME:-mv-director-studio-v2}"
 SA_NAME="${SA_NAME:-mv-director-studio-sa}"

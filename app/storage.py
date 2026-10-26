@@ -28,8 +28,6 @@ from app.config import (
     DEFAULT_ORIGINAL_AUDIO_PROMPT,
     DEFAULT_PLATFORM_CONFIG,
     DOCS_DIR,
-    GDRIVE_BIN,
-    GENERATE_BIN,
     MANIFEST_PATH,
     MODEL_ARGON_4,
     MODEL_FLASH_38,
@@ -153,244 +151,165 @@ def call_gemini_model(
 
     target_model = model if model.startswith("models/") else f"models/{model}"
     norm_thinking = thinking_level.strip().upper() if thinking_level and thinking_level.strip() else None
-    req_id = uuid.uuid4().hex[:10]
-    req_path = Path(f"/tmp/argon_v2_req_{req_id}.json")
     last_err = ""
 
-    try:
-        # 1. Cloudtop `generate` CLI if present
-        if Path(GENERATE_BIN).exists():
-            for attempt_idx, sleep_before in enumerate((0.0, 2.0)):
-                if sleep_before > 0:
-                    time.sleep(sleep_before)
-                t0 = time.perf_counter()
-                t_cfg: dict[str, Any] = {"include_thoughts": False}
-                if norm_thinking:
-                    t_cfg["thinking_level"] = norm_thinking
-                gen_cfg: dict[str, Any] = {
-                    "temperature": float(temperature),
-                    "response_mime_type": "application/json",
-                    "thinking_config": t_cfg,
-                }
-                if max_output_tokens and int(max_output_tokens) > 0:
-                    gen_cfg["max_output_tokens"] = int(max_output_tokens)
-                payload = {
-                    "model": target_model,
-                    "contents": [{"role": "user", "parts": parts}],
-                    "generation_config": gen_cfg,
-                }
-                req_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-                cmd = [
-                    GENERATE_BIN,
-                    "-prod",
-                    "-json",
-                    f"-timeout={eff_timeout}s",
-                    f"-request={req_path}",
-                ]
-                res = subprocess.run(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=eff_timeout + 15,
+    from google import genai
+    from google.genai import types
+
+    if eff_api_key and not prefer_vertex:
+        client = genai.Client(api_key=eff_api_key)
+    elif eff_project:
+        client = genai.Client(vertexai=True, project=eff_project, location=eff_location)
+    elif eff_api_key:
+        client = genai.Client(api_key=eff_api_key)
+    else:
+        client = genai.Client(vertexai=True, project="genai-dnb-demo", location=eff_location)
+
+    sdk_contents: list[Any] = []
+    for p in parts:
+        if "text" in p:
+            sdk_contents.append(p["text"])
+        elif "file_data" in p and str(p["file_data"].get("file_uri", "")).startswith("gs://"):
+            fd = p["file_data"]
+            sdk_contents.append(
+                types.Part.from_uri(
+                    file_uri=fd["file_uri"],
+                    mime_type=fd.get("mime_type", "application/octet-stream"),
                 )
-                if res.returncode != 0:
-                    last_err = res.stderr[:400]
-                    continue
-                try:
-                    envelope = json.loads(res.stdout)
-                    text_out = ""
-                    for cand in envelope.get("candidates", []):
-                        for part in cand.get("content", {}).get("parts", []):
-                            if "text" in part and not part.get("thought", False):
-                                text_out += part["text"]
-                    if not text_out:
-                        for cand in envelope.get("candidates", []):
-                            for part in cand.get("content", {}).get("parts", []):
-                                if "text" in part:
-                                    text_out += part["text"]
-                    parsed = _clean_json_output(text_out)
-                    latency = round(time.perf_counter() - t0, 2)
-                    usage = envelope.get("usage_metadata", {})
-                    return parsed, {
-                        "model_version": envelope.get("model_version", target_model),
-                        "requested_model": target_model,
-                        "project_id": eff_project,
-                        "location": eff_location,
-                        "thinking_level": norm_thinking or "DEFAULT",
-                        "temperature": temperature,
-                        "latency_sec": latency,
-                        "prompt_tokens": usage.get("prompt_token_count", 0),
-                        "candidate_tokens": usage.get("candidates_token_count", 0),
-                        "total_tokens": usage.get("total_token_count", 0),
-                    }
-                except Exception as pe:
-                    last_err = f"JSON parse error: {pe}"
-
-        # 2. Local Laptop / Standard `google-genai` SDK
-        from google import genai
-        from google.genai import types
-
-        if eff_api_key and not prefer_vertex:
-            client = genai.Client(api_key=eff_api_key)
-        elif eff_project:
-            client = genai.Client(vertexai=True, project=eff_project, location=eff_location)
-        elif eff_api_key:
-            client = genai.Client(api_key=eff_api_key)
-        else:
-            client = genai.Client(vertexai=True, project="genai-dnb-demo", location=eff_location)
-
-        sdk_contents: list[Any] = []
-        for p in parts:
-            if "text" in p:
-                sdk_contents.append(p["text"])
-            elif "file_data" in p and str(p["file_data"].get("file_uri", "")).startswith("gs://"):
-                fd = p["file_data"]
-                sdk_contents.append(
-                    types.Part.from_uri(
-                        file_uri=fd["file_uri"],
-                        mime_type=fd.get("mime_type", "application/octet-stream"),
-                    )
-                )
-            elif "inline_data" in p:
-                inl = p["inline_data"]
-                data_str = str(inl["data"])
-                p_cand = Path(data_str)
-                if p_cand.exists() and p_cand.is_file():
-                    raw_bytes = p_cand.read_bytes()
-                    if len(raw_bytes) < 128:
-                        raise RuntimeError(f"媒体文件过小或损坏 ({len(raw_bytes)}B): {p_cand}")
-                elif data_str.startswith("/") or data_str.endswith((".mp3", ".jpeg", ".jpg", ".png", ".mp4")):
-                    # Look up detailed resolution trace if recorded by resolve_sample_asset
-                    trace_detail = ""
-                    for tk_key, notes in list(_LAST_ASSET_RESOLUTION_TRACES.items()):
-                        if data_str.endswith(tk_key):
-                            trace_detail = "\n  • 详细排查轨迹:\n    - " + "\n    - ".join(notes)
-                            break
-                    bucket_name, prefix = _parse_gcs_bucket_and_prefix()
-                    err_msg = (
-                        f"未找到样本媒体文件: {p_cand} (DATA_DIR={DATA_DIR}, SAMPLES_DIR={SAMPLES_DIR}, "
-                        f"GCS_BUCKET={bucket_name or '<未配置>'}, GCS_PREFIX={prefix or '<空>'})。"
-                        f"\n请检查：(1) 若使用 GCS，请确认传入了环境变量 GCS_BUCKET (或 GCS_BUCKET) 且对象位于 gs://<bucket>/samples/01..10/ 或 gs://<bucket>/argon_eval_data/samples/01..10/；"
-                        f"(2) 若使用本地目录，请确认包含 argon_eval_data/samples/01..10；"
-                        f"(3) 或在 Tab #7 配置中心直接从浏览器上传素材！{trace_detail}"
-                    )
-                    log_runtime("ERROR", "MEDIA_FILE_MISSING", err_msg)
-                    raise FileNotFoundError(err_msg)
-                else:
-                    raw_bytes = base64.b64decode(data_str)
-                sdk_contents.append(types.Part.from_bytes(data=raw_bytes, mime_type=inl["mime_type"]))
-
-        clean_model = target_model.replace("models/", "")
-        # Strict model policy: ONLY allow gemini-4-argon and gemini-3.8-flash! Never switch models on retry!
-        if "3.8" in clean_model or "flash" in clean_model:
-            strict_model = MODEL_FLASH_38
-        else:
-            strict_model = MODEL_ARGON_4
-        eff_max_tokens = max(int(max_output_tokens or 65535), 65535)
-        retry_attempts = 3
-
-        for fb_idx in range(1, retry_attempts + 1):
-            fb_model = strict_model
-            if fb_idx > 1:
-                time.sleep(1.5)
-            t0 = time.perf_counter()
-            log_runtime(
-                "INFO",
-                "MODEL_CALL_START",
-                f"调用模型 {fb_model} (attempt={fb_idx}/{retry_attempts}, loc={eff_location}, proj={eff_project}, thinking={norm_thinking or 'DEFAULT'}, temp={temperature}, max_tokens={eff_max_tokens})",
             )
-            try:
-                cfg_kwargs: dict[str, Any] = {
-                    "temperature": float(temperature),
-                    "response_mime_type": "application/json",
-                    "max_output_tokens": eff_max_tokens,
-                }
-                if norm_thinking:
-                    cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=norm_thinking)
-                resp = client.models.generate_content(
-                    model=fb_model,
-                    contents=sdk_contents,
-                    config=types.GenerateContentConfig(**cfg_kwargs),
+        elif "inline_data" in p:
+            inl = p["inline_data"]
+            data_str = str(inl["data"])
+            p_cand = Path(data_str)
+            if p_cand.exists() and p_cand.is_file():
+                raw_bytes = p_cand.read_bytes()
+                if len(raw_bytes) < 128:
+                    raise RuntimeError(f"媒体文件过小或损坏 ({len(raw_bytes)}B): {p_cand}")
+            elif data_str.startswith("/") or data_str.endswith((".mp3", ".jpeg", ".jpg", ".png", ".mp4")):
+                # Look up detailed resolution trace if recorded by resolve_sample_asset
+                trace_detail = ""
+                for tk_key, notes in list(_LAST_ASSET_RESOLUTION_TRACES.items()):
+                    if data_str.endswith(tk_key):
+                        trace_detail = "\n  • 详细排查轨迹:\n    - " + "\n    - ".join(notes)
+                        break
+                bucket_name, prefix = _parse_gcs_bucket_and_prefix()
+                err_msg = (
+                    f"未找到样本媒体文件: {p_cand} (DATA_DIR={DATA_DIR}, SAMPLES_DIR={SAMPLES_DIR}, "
+                    f"GCS_BUCKET={bucket_name or '<未配置>'}, GCS_PREFIX={prefix or '<空>'})。"
+                    f"\n请检查：(1) 若使用 GCS，请确认传入了环境变量 ARGON_GCS_BUCKET (或 GCS_BUCKET) 且对象位于 gs://<bucket>/samples/01..10/ 或 gs://<bucket>/argon_eval_data/samples/01..10/；"
+                    f"(2) 若使用本地目录，请确认包含 argon_eval_data/samples/01..10；"
+                    f"(3) 或在 Tab #7 配置中心直接从浏览器上传素材！{trace_detail}"
                 )
-                if resp.text:
-                    parsed = _clean_json_output(resp.text)
-                    latency = round(time.perf_counter() - t0, 2)
-                    um = getattr(resp, "usage_metadata", None)
-                    p_tok = getattr(um, "prompt_token_count", 0) or 0
-                    c_tok = getattr(um, "candidates_token_count", 0) or 0
-                    t_tok = getattr(um, "total_token_count", 0) or 0
-                    log_runtime(
-                        "INFO",
-                        "MODEL_CALL_OK",
-                        f"模型 {fb_model} 响应成功 (耗时={latency}s, tokens={p_tok}+{c_tok}={t_tok})",
-                    )
-                    return parsed, {
-                        "model_version": fb_model,
-                        "requested_model": target_model,
-                        "project_id": eff_project,
-                        "location": eff_location,
-                        "thinking_level": norm_thinking or "DEFAULT",
-                        "temperature": temperature,
-                        "attempt": fb_idx,
-                        "latency_sec": latency,
-                        "prompt_tokens": p_tok,
-                        "candidate_tokens": c_tok,
-                        "total_tokens": t_tok,
-                    }
-            except Exception as fb_exc:
-                if norm_thinking and "thinking" in str(fb_exc).lower():
-                    log_runtime(
-                        "WARNING",
-                        "MODEL_THINKING_FALLBACK",
-                        f"模型 {fb_model} 不支持当前 thinking_config ({norm_thinking})，正在自动降级为无 thinking_config 重试: {fb_exc}",
-                    )
-                    try:
-                        resp = client.models.generate_content(
-                            model=fb_model,
-                            contents=sdk_contents,
-                            config=types.GenerateContentConfig(
-                                temperature=float(temperature),
-                                response_mime_type="application/json",
-                            ),
-                        )
-                        if resp.text:
-                            parsed = _clean_json_output(resp.text)
-                            latency = round(time.perf_counter() - t0, 2)
-                            log_runtime(
-                                "INFO",
-                                "MODEL_CALL_OK",
-                                f"模型 {fb_model} (fallback-auto) 响应成功 (耗时={latency}s)",
-                            )
-                            return parsed, {
-                                "model_version": fb_model,
-                                "requested_model": target_model,
-                                "project_id": eff_project,
-                                "location": eff_location,
-                                "thinking_level": f"{norm_thinking} (fallback-auto)",
-                                "temperature": temperature,
-                                "latency_sec": latency,
-                                "prompt_tokens": 0,
-                                "candidate_tokens": 0,
-                                "total_tokens": 0,
-                            }
-                    except Exception as retry_exc:
-                        log_runtime("WARNING", "MODEL_RETRY_FAIL", f"模型 {fb_model} 降级重试仍失败: {retry_exc}")
-                last_err = f"{fb_model} (loc={eff_location}, proj={eff_project}): {type(fb_exc).__name__}: {fb_exc}"
+                log_runtime("ERROR", "MEDIA_FILE_MISSING", err_msg)
+                raise FileNotFoundError(err_msg)
+            else:
+                raw_bytes = base64.b64decode(data_str)
+            sdk_contents.append(types.Part.from_bytes(data=raw_bytes, mime_type=inl["mime_type"]))
+
+    clean_model = target_model.replace("models/", "")
+    # Strict model policy: ONLY allow gemini-4-argon and gemini-3.8-flash! Never switch models on retry!
+    if "3.8" in clean_model or "flash" in clean_model:
+        strict_model = MODEL_FLASH_38
+    else:
+        strict_model = MODEL_ARGON_4
+    eff_max_tokens = max(int(max_output_tokens or 65535), 65535)
+    retry_attempts = 3
+
+    for fb_idx in range(1, retry_attempts + 1):
+        fb_model = strict_model
+        if fb_idx > 1:
+            time.sleep(1.5)
+        t0 = time.perf_counter()
+        log_runtime(
+            "INFO",
+            "MODEL_CALL_START",
+            f"调用模型 {fb_model} (attempt={fb_idx}/{retry_attempts}, loc={eff_location}, proj={eff_project}, thinking={norm_thinking or 'DEFAULT'}, temp={temperature}, max_tokens={eff_max_tokens})",
+        )
+        try:
+            cfg_kwargs: dict[str, Any] = {
+                "temperature": float(temperature),
+                "response_mime_type": "application/json",
+                "max_output_tokens": eff_max_tokens,
+            }
+            if norm_thinking:
+                cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=norm_thinking)
+            resp = client.models.generate_content(
+                model=fb_model,
+                contents=sdk_contents,
+                config=types.GenerateContentConfig(**cfg_kwargs),
+            )
+            if resp.text:
+                parsed = _clean_json_output(resp.text)
+                latency = round(time.perf_counter() - t0, 2)
+                um = getattr(resp, "usage_metadata", None)
+                p_tok = getattr(um, "prompt_token_count", 0) or 0
+                c_tok = getattr(um, "candidates_token_count", 0) or 0
+                t_tok = getattr(um, "total_token_count", 0) or 0
+                log_runtime(
+                    "INFO",
+                    "MODEL_CALL_OK",
+                    f"模型 {fb_model} 响应成功 (耗时={latency}s, tokens={p_tok}+{c_tok}={t_tok})",
+                )
+                return parsed, {
+                    "model_version": fb_model,
+                    "requested_model": target_model,
+                    "project_id": eff_project,
+                    "location": eff_location,
+                    "thinking_level": norm_thinking or "DEFAULT",
+                    "temperature": temperature,
+                    "attempt": fb_idx,
+                    "latency_sec": latency,
+                    "prompt_tokens": p_tok,
+                    "candidate_tokens": c_tok,
+                    "total_tokens": t_tok,
+                }
+        except Exception as fb_exc:
+            if norm_thinking and "thinking" in str(fb_exc).lower():
                 log_runtime(
                     "WARNING",
-                    "MODEL_ATTEMPT_FAIL",
-                    f"模型调用异常 [{fb_model} @ {eff_location} (proj={eff_project})]: {type(fb_exc).__name__}: {fb_exc}",
-                    exc=fb_exc if fb_idx == retry_attempts else None,
+                    "MODEL_THINKING_FALLBACK",
+                    f"模型 {fb_model} 不支持当前 thinking_config ({norm_thinking})，正在自动降级为无 thinking_config 重试: {fb_exc}",
                 )
+                try:
+                    resp = client.models.generate_content(
+                        model=fb_model,
+                        contents=sdk_contents,
+                        config=types.GenerateContentConfig(
+                            temperature=float(temperature),
+                            response_mime_type="application/json",
+                        ),
+                    )
+                    if resp.text:
+                        parsed = _clean_json_output(resp.text)
+                        latency = round(time.perf_counter() - t0, 2)
+                        log_runtime(
+                            "INFO",
+                            "MODEL_CALL_OK",
+                            f"模型 {fb_model} (fallback-auto) 响应成功 (耗时={latency}s)",
+                        )
+                        return parsed, {
+                            "model_version": fb_model,
+                            "requested_model": target_model,
+                            "project_id": eff_project,
+                            "location": eff_location,
+                            "thinking_level": f"{norm_thinking} (fallback-auto)",
+                            "temperature": temperature,
+                            "latency_sec": latency,
+                            "prompt_tokens": 0,
+                            "candidate_tokens": 0,
+                            "total_tokens": 0,
+                        }
+                except Exception as retry_exc:
+                    log_runtime("WARNING", "MODEL_RETRY_FAIL", f"模型 {fb_model} 降级重试仍失败: {retry_exc}")
+            last_err = f"{fb_model} (loc={eff_location}, proj={eff_project}): {type(fb_exc).__name__}: {fb_exc}"
+            log_runtime(
+                "WARNING",
+                "MODEL_ATTEMPT_FAIL",
+                f"模型调用异常 [{fb_model} @ {eff_location} (proj={eff_project})]: {type(fb_exc).__name__}: {fb_exc}",
+                exc=fb_exc if fb_idx == retry_attempts else None,
+            )
 
-        raise RuntimeError(f"Model call failed ({target_model}): {last_err}")
-    finally:
-        if req_path.exists():
-            try:
-                req_path.unlink()
-            except OSError:
-                pass
+    raise RuntimeError(f"Model call failed ({target_model}): {last_err}")
 
 
 # ==============================================================================
@@ -416,8 +335,8 @@ def _parse_gcs_bucket_and_prefix() -> tuple[str, str]:
     """Returns (bucket_name, prefix_without_leading_or_trailing_slash) from config or env."""
     cfg = load_platform_config()
     proj = cfg.get("project", {})
-    raw_bucket = (proj.get("gcs_bucket") or os.environ.get("GCS_BUCKET") or "").strip()
-    raw_prefix = (proj.get("gcs_prefix") or os.environ.get("GCS_PREFIX") or "argon_eval_data").strip()
+    raw_bucket = (proj.get("gcs_bucket") or os.environ.get("ARGON_GCS_BUCKET") or "").strip()
+    raw_prefix = (proj.get("gcs_prefix") or os.environ.get("ARGON_GCS_PREFIX") or "argon_eval_data").strip()
     if raw_bucket.startswith("gs://"):
         without_scheme = raw_bucket[5:].strip("/")
         parts = without_scheme.split("/", 1)
@@ -492,7 +411,7 @@ def download_from_gcs_universal(
     if not bucket_name:
         if trace_notes is not None:
             trace_notes.append(
-                "GCS跳过: 未配置 GCS Bucket (环境变量 GCS_BUCKET 与 platform_config.project.gcs_bucket 均为空)"
+                "GCS跳过: 未配置 GCS Bucket (环境变量 ARGON_GCS_BUCKET 与 platform_config.project.gcs_bucket 均为空)"
             )
         return False
     clean_rel = rel_object_path.lstrip("/")
@@ -628,24 +547,6 @@ def download_drive_file_universal(
     if dest.exists() and dest.stat().st_size > 128:
         return True
     dest.parent.mkdir(parents=True, exist_ok=True)
-    if Path(GDRIVE_BIN).exists():
-        try:
-            res = subprocess.run(
-                [GDRIVE_BIN, "readonly", "download", file_id, "--out", str(dest)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=timeout_sec,
-            )
-            if res.returncode == 0 and dest.exists() and dest.stat().st_size > 128:
-                if trace_notes is not None:
-                    trace_notes.append(f"GDrive CLI下载成功: file_id={file_id} -> {dest}")
-                return True
-            elif trace_notes is not None:
-                trace_notes.append(f"GDrive CLI返回 rc={res.returncode}: {res.stderr.strip()[:160]}")
-        except Exception as cli_exc:
-            if trace_notes is not None:
-                trace_notes.append(f"GDrive CLI异常: {cli_exc}")
 
     import urllib.error
     import urllib.request
@@ -746,7 +647,7 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
         target.parent.mkdir(parents=True, exist_ok=True)
 
     cfg_proj = load_platform_config().get("project", {})
-    mode = (cfg_proj.get("asset_storage_mode") or os.environ.get("ASSET_STORAGE_MODE") or "auto").lower()
+    mode = (cfg_proj.get("asset_storage_mode") or os.environ.get("ARGON_ASSET_STORAGE_MODE") or "auto").lower()
     bucket_name, prefix = _parse_gcs_bucket_and_prefix()
     trace_notes.append(
         f"远程回退配置: storage_mode={mode} | gcs_bucket={bucket_name or '<未设置>'} | gcs_prefix={prefix or '<空>'} | drive_file_id={file_id or '<无>'}"

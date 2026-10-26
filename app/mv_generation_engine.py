@@ -2059,7 +2059,7 @@ def _synthesize_mv_image_with_nano_banana(
 
 
 def _find_best_cjk_font_path() -> str:
-    """Locates the best available CJK TrueType/OpenType font on Linux / Cloudtop / Cloud Run."""
+    """Locates the best available CJK TrueType/OpenType font on Linux / Cloud Run."""
     candidates = (
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
