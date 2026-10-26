@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MV 全流程多模型评测、Prompt 调优、Storyline 创作与 MV 全链路生成工作台 V2.3.1</title>
+  <title>MV 全流程多模型评测、Prompt 调优与 Storyline 创作工作台 V2.2</title>
   <style>
     :root {
       --bg: #0b0e17;
@@ -274,7 +274,7 @@
 <body>
   <header>
     <div class="brand-title">
-      <span>🎬 MV 多模态评测、Prompt 调优、Storyline 创作与 MV 生成工坊 V2.3.1</span>
+      <span>🎬 MV 多模态评测、Prompt 调优与 Storyline 创作工作台 V2.2</span>
       <span class="badge badge-indigo" id="hdr-project-badge">Project: genai-dnb-demo</span>
       <span class="badge badge-emerald">All Prompts & Per-Tab Models Configurable</span>
       <span class="badge badge-cyan">持久化 & Reload 审阅</span>
@@ -294,9 +294,8 @@
     <button class="nav-tab" onclick="switchTab('tab-step3', this)">✨ 3. Gemini 4 Argon 提示词优化器 (含Why解析)</button>
     <button class="nav-tab" onclick="switchTab('tab-step4', this)">🚀 4. 优化后Prompt评测 (可选 3.8 / 4 Argon)</button>
     <button class="nav-tab" onclick="switchTab('tab-storyline', this)" style="border-color:rgba(16,185,129,0.45); color:#6ee7b7;">🎬 5. MV Storyline 创作与词曲对比评测 (V2.2)</button>
-    <button class="nav-tab" onclick="switchTab('tab-mv-studio', this)" style="border-color:rgba(168,85,247,0.55); color:#d8b4fe;">🎥 6. MV 全链路自动生成工坊 (分镜规划/口型节奏/字幕合并) (V2.3.1)</button>
-    <button class="nav-tab" onclick="switchTab('tab-step5', this)">📊 7. 全链路横向对比大盘 & 持久化快照</button>
-    <button class="nav-tab" onclick="switchTab('tab-settings', this)">⚙️ 8. 项目/模型参数与全量 Prompt 配置中心</button>
+    <button class="nav-tab" onclick="switchTab('tab-step5', this)">📊 6. 全链路横向对比大盘 & 持久化快照</button>
+    <button class="nav-tab" onclick="switchTab('tab-settings', this)">⚙️ 7. 项目/模型参数与全量 Prompt 配置中心</button>
   </div>
 
   <div class="container">
@@ -676,237 +675,6 @@
       </div>
     </div>
 
-    <!-- TAB MV STUDIO (V2.3 NEW): STORYLINE -> STORYBOARD -> 24FPS LIP-SYNC -> OMNI 1.1 FLASH -> SUBTITLE SYNC & FFMPEG MERGE -->
-    <div id="tab-mv-studio" class="tab-pane">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">🎥 Step 6 (V2.3.1) — 基于 V2.2 Storyline 的 MV 全链路自动生成工坊（独唱/合唱/纯故事模式 · 24fps 短句级真音频毫秒口型对齐 · Omni 1.1 渲染 · 字幕合并）</h2>
-            <div style="color:var(--muted); font-size:12px; margin-top:4px; line-height:1.55;">
-              深度融合 <code>viral_pitch_studio.py</code> 精细化 Omni 音画对齐控制架构：
-              <strong>① 三大 MV 演绎与对嘴模式：🎤独唱精准对嘴 (`Solo Vocal Lip-Sync`) / 🎭合唱对唱分角对嘴 (`Duet &amp; Chorus Lip-Sync`) / 🎬纯故事叙事无需对嘴 (`Pure Story Narrative`)</strong> ｜
-              <strong>② 24fps (`41.667ms`) DSP 人声频带 (`220–3600Hz`) + 自相关基频 $F_0$ (`85–178Hz` 男声 / `190–380Hz` 女声 / 双声部和声) + 音节律动密度 (`Cadence`) 自动检测</strong> ｜
-              <strong>③ Nano Banana 2.1 角色定妆与各幕首帧 (<code>&lt;FIRST_FRAME&gt;</code>) + 尾帧无缝接力</strong> ｜
-              <strong>④ Gemini Omni 1.1 Flash 原生 <code>[MM:SS.mmm]</code> 分镜生成</strong> ｜
-              <strong>⑤ 毫秒级同步字幕 (<code>.srt</code>/<code>.vtt</code> + 底部精修字幕烧录) &amp; FFmpeg 全曲无损合并</strong>。
-            </div>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="runMvStudioBatch(false)" style="padding:9px 15px; font-size:12.5px;">
-              🚀 一键并行批量生成全部样本 MV
-            </button>
-            <button class="btn btn-cyan" onclick="toggleSingleMvCreatorPanel()">
-              🎵 基于单个歌曲/自定义图片生成单个 MV
-            </button>
-            <button class="btn" onclick="runMvStudioBatch(true)">
-              ♻️ 强制重跑全部 MV
-            </button>
-          </div>
-        </div>
-
-        <!-- Batch & Global MV Studio Controls -->
-        <div class="grid-4" style="background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:12px;">
-          <div>
-            <label style="font-size:11.5px; color:#6ee7b7; font-weight:700; display:block; margin-bottom:4px;">1. Storyline 故事线来源 (继承 V2.2)</label>
-            <select id="mv-storyline-source">
-              <option value="prefer_argon" selected>优先采用 #5 S-B (Gemini 4 Argon Storyline，无则自动生成)</option>
-              <option value="prefer_flash">优先采用 #5 S-A (Gemini 3.8 Flash Storyline，无则自动生成)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:11.5px; color:#a5b4fc; font-weight:700; display:block; margin-bottom:4px;">2. 目标 MV 总时长与自动分镜幕数 (默认与歌曲完全等长)</label>
-            <select id="mv-target-duration">
-              <option value="0" selected>🎵 跟随原曲完整时长 (自动全曲 10s×N 幕分镜 + 100% 等长合成)</option>
-              <option value="20">20 秒 (2幕 × 10.0s 起承高潮双幕 MV)</option>
-              <option value="30">30 秒 (3幕 × 10.0s 三幕递进高光 MV)</option>
-              <option value="40">40 秒 (4幕 × 10.0s 四幕全弧光叙事 MV)</option>
-              <option value="60">60 秒 (6幕 × 10.0s 一分钟精华 MV)</option>
-              <option value="120">120 秒 (12幕 × 10.0s 两分钟长篇 MV)</option>
-              <option value="10">10 秒 (1幕 × 10.0s 极速高光片段)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:11.5px; color:#fcd34d; font-weight:700; display:block; margin-bottom:4px;">3. MV 演绎与对嘴模式 (独唱 / 合唱对唱 / 纯故事无需对嘴)</label>
-            <select id="mv-performance-mode">
-              <option value="auto_detect" selected>🧠 智能声学判别模式 (自动识别独唱 / 合唱对唱 / 纯故事)</option>
-              <option value="solo_vocal_lipsync">🎤 独唱精准对嘴模式 (Solo Vocal Lip-Sync: 单主唱逐字对嘴 + 配角闭嘴演戏)</option>
-              <option value="duet_chorus_lipsync">🎭 合唱/对唱分角对嘴模式 (Duet &amp; Chorus Lip-Sync: 男女/双角分句轮唱 + 副歌合唱)</option>
-              <option value="pure_story_cinematic">🎬 纯故事叙事模式·无需对嘴 (Pure Story Narrative: 全程不对嘴纯演戏 + 节拍卡点运镜)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:11.5px; color:#67e8f9; font-weight:700; display:block; margin-bottom:4px;">4. 分镜衔接与首帧接力模式</label>
-            <select id="mv-continuity-mode">
-              <option value="multi_shot_mv" selected>多幕独立分镜切换 (每幕独立 Nano Banana &lt;FIRST_FRAME&gt;)</option>
-              <option value="continuous_relay">一镜到底尾帧无缝接力 (提取上幕 10.0s 尾帧作为下幕首帧)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:11.5px; color:#fda4af; font-weight:700; display:block; margin-bottom:4px;">5. 分镜生成与合成执行模式</label>
-            <select id="mv-execution-mode">
-              <option value="full_auto" selected>🚀 全链路自动生成 (Omni 1.1 Flash 渲染 + 字幕同步烧录 + FFmpeg 合并)</option>
-              <option value="fast_animatic_mv">⚡ 极速动态分镜出片 (Nano Banana 首帧 + 24fps 动态运镜 + 字幕烧录合并)</option>
-              <option value="plan_and_keyframes">📝 仅生成 Phase 1: 毫秒级分镜规划 + 首帧定妆 + 同步字幕轨 (可微调后渲染)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px;">6. 画面比例 &amp; 字幕烧录开关</label>
-            <div style="display:flex; gap:6px;">
-              <select id="mv-aspect-ratio" style="width:52%;">
-                <option value="16:9" selected>16:9 横屏 MV</option>
-                <option value="9:16">9:16 竖屏短视频</option>
-              </select>
-              <select id="mv-burn-subtitles" style="width:48%;">
-                <option value="true" selected>字幕烧录+SRT</option>
-                <option value="false">仅外挂SRT/VTT</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label style="font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px;">7. 原曲起始偏移秒数 (留空自动按Storyline选高光)</label>
-            <input type="number" id="mv-audio-start-sec" placeholder="留空自动对齐 Storyline 段落 (如 0)" min="0" step="1" />
-          </div>
-          <div>
-            <label style="font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px;">8. 批量生成并行度 (Workers)</label>
-            <select id="workers-mv-studio">
-              <option value="1">1 线程 (顺序稳妥生成)</option>
-              <option value="2" selected>2 线程并行</option>
-              <option value="3">3 线程并行</option>
-              <option value="5">5 线程并行</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="cfg-summary-bar">
-          <div id="cfg-pill-mv-studio">当前 Tab #6 MV 生成工坊模型配置加载中...</div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn" onclick="openConfigForRole('tab6_mv_director', 'mv_storyboard_director_prompt')">⚙️ 修改分镜导演 / Nano Banana 2.1 / Omni 1.1 Flash 模型配置</button>
-          </div>
-        </div>
-
-        <!-- Single Song / Custom Image(s) MV Generator Panel -->
-        <div id="single-mv-creator-panel" style="display:none; background:linear-gradient(135deg, rgba(30,27,75,0.65), rgba(15,23,42,0.9)); border:1px solid #6366f1; border-radius:10px; padding:14px 16px; margin-bottom:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-            <div>
-              <strong style="font-size:13.5px; color:#a5b4fc;">🎵 单曲 / 自定义图片 MV 专属生成工作台 (支持从测试集选单曲 或 上传全新单曲+图片一键生成 MV)</strong>
-              <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">
-                支持上传 1 张图（单人主角 MV）或 2 张图（双人主角对唱/纯故事 MV）+ 歌曲音频，自动执行 24fps 基频 $F_0$/性别/节奏分析与 Omni 毫秒级时间轴对齐！
-              </div>
-            </div>
-            <button class="btn" onclick="toggleSingleMvCreatorPanel()">✕ 收起单曲工作台</button>
-          </div>
-
-          <div class="grid-2">
-            <!-- Sub-panel A: Pick any existing sample -->
-            <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px;">
-              <div style="font-weight:700; color:#6ee7b7; margin-bottom:8px;">方式 A：基于已有单曲样本生成单个 MV</div>
-              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
-                <select id="single-mv-sample-select" style="width:260px;"></select>
-                <button class="btn btn-emerald" onclick="runSingleSampleMvFromSelector()">🎬 立即生成该单曲 MV</button>
-              </div>
-              <div style="font-size:11.5px; color:var(--muted);">
-                将读取上方所选的时长（默认全曲等长）、演绎与对嘴模式（智能判别 / 独唱对嘴 / 合唱对唱 / 纯故事不对嘴）、首帧接力模式与字幕烧录设置，立即为所选单曲执行全链路生成。
-              </div>
-            </div>
-
-            <!-- Sub-panel B: Upload custom song + 1~2 images -->
-            <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px;">
-              <div style="font-weight:700; color:#fcd34d; margin-bottom:8px;">方式 B：上传自定义歌曲音频 + 1~2 张角色参考图生成单个 MV</div>
-              <div class="grid-2" style="gap:8px; margin-bottom:8px;">
-                <div>
-                  <label style="font-size:11px; color:var(--muted);">自定义 MV 标题 / 歌名</label>
-                  <input type="text" id="custom-mv-title" placeholder="例如：Neon Rain Ballad / 霓虹雨夜" />
-                </div>
-                <div>
-                  <label style="font-size:11px; color:var(--muted);">演唱语言 (Language)</label>
-                  <select id="custom-mv-lang">
-                    <option value="Chinese">中文 (Mandarin Chinese)</option>
-                    <option value="English" selected>英文 (English)</option>
-                    <option value="Japanese">日文 (Japanese)</option>
-                    <option value="Portuguese">葡语 (Portuguese)</option>
-                  </select>
-                </div>
-              </div>
-              <div class="grid-3" style="gap:8px; margin-bottom:8px;">
-                <div>
-                  <label style="font-size:11px; color:#fda4af;">*必选: 主角参考图 1 (<code>&lt;IMAGE_REF_0&gt;</code>)</label>
-                  <input type="file" id="custom-mv-img1" accept="image/*" style="font-size:11px;" />
-                </div>
-                <div>
-                  <label style="font-size:11px; color:var(--muted);">可选: 第二角色参考图 2 (<code>&lt;IMAGE_REF_1&gt;</code>)</label>
-                  <input type="file" id="custom-mv-img2" accept="image/*" style="font-size:11px;" />
-                </div>
-                <div>
-                  <label style="font-size:11px; color:#67e8f9;">*必选: 歌曲音频 (.mp3/.wav/.m4a)</label>
-                  <input type="file" id="custom-mv-audio" accept="audio/*" style="font-size:11px;" />
-                </div>
-              </div>
-              <div style="margin-bottom:8px;">
-                <label style="font-size:11px; color:var(--muted);">可选: 导演提示词 / 歌词 / 角色分工约束 (留空则 Zero-Prompt 自动推导 Storyline)</label>
-                <input type="text" id="custom-mv-prompt" placeholder="例如：男主在雨夜霓虹街头深情演唱，女主在伞下流泪不张嘴，副歌镜头环绕升格..." />
-              </div>
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span id="custom-mv-upload-status" style="font-size:11.5px; color:#6ee7b7;"></span>
-                <button class="btn btn-primary" onclick="createAndRunCustomSingleMv()">✨ 上传并一键生成自定义单曲 MV</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Expandable MV Storyboard Director Prompt Editor -->
-        <details style="margin-bottom:14px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 14px;">
-          <summary style="cursor:pointer; font-weight:700; font-size:13px; color:#a5b4fc;">
-            📝 展开查看 / 在线编辑「V2.3 MV 毫秒级分镜规划与口型/节奏/字幕对齐导演提示词 (`mv_storyboard_director_prompt`)」
-          </summary>
-          <div style="margin-top:10px;">
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
-              <span class="badge badge-emerald">✓ 24fps (41.667ms) 帧网格对齐</span>
-              <span class="badge badge-indigo">✓ DSP 220Hz–3600Hz 人声频带实测</span>
-              <span class="badge badge-cyan">✓ 声画性别锁与演唱权限隔离 (Mouth Isolation)</span>
-              <span class="badge badge-amber">✓ 幕内 A/B/C-Roll 快切运镜语法</span>
-              <span class="badge badge-rose">✓ 毫秒级同步字幕轨 (.srt/.vtt + 烧录)</span>
-            </div>
-            <textarea id="mv-director-prompt-quick-box" rows="9" style="width:100%; font-family:monospace; font-size:12px;"></textarea>
-            <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
-              <button class="btn btn-emerald" onclick="saveEditedMvDirectorPrompt()">💾 保存 MV 分镜导演提示词修改</button>
-            </div>
-          </div>
-        </details>
-
-        <!-- Live Batch Progress & Logs for Tab #6 -->
-        <div id="prog-mv-studio" style="display:none; margin-bottom:12px; background:#0d1322; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;">
-            <span id="prog-mv-studio-text" style="font-weight:600; color:#e2e8f0; word-break:break-word;">正在并行执行 MV 全链路生成...</span>
-            <span id="prog-mv-studio-pct" style="white-space:nowrap; color:#6ee7b7; font-weight:700;">0%</span>
-          </div>
-          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-mv-studio-bar"></div></div>
-          <details open style="margin-top:8px;">
-            <summary style="cursor:pointer; font-size:11.5px; color:#fcd34d; font-weight:600;">📡 实时流水线日志 (含 24fps DSP 人声实测、声画性别锁定、Nano Banana 首帧、Omni 1.1 渲染与字幕合并)</summary>
-            <pre id="prog-mv-studio-logs" style="margin-top:6px; max-height:210px; font-size:11px; line-height:1.45; background:#060911; color:#a7f3d0;"></pre>
-          </details>
-        </div>
-
-        <div class="grid-4" id="summary-mv-studio" style="margin-bottom:12px;"></div>
-
-        <div style="overflow-x:auto;">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:52px;">样本</th>
-                <th style="width:185px;">曲目 / 角色参考图 / 故事线源</th>
-                <th style="width:145px;">状态 &amp; 声画性别锁</th>
-                <th style="min-width:270px;">分镜文本规划 &amp; 24fps 毫秒级口型/节奏时间轴</th>
-                <th style="min-width:220px;">分镜首帧 (<code>&lt;FIRST_FRAME&gt;</code>) &amp; 分镜视频</th>
-                <th style="min-width:260px;">合并成品 MV (含同步字幕烧录 &amp; .srt)</th>
-                <th style="width:135px;">操作</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-mv-studio"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
     <!-- TAB 5: COMPARISON & PERSISTENCE -->
     <div id="tab-step5" class="tab-pane">
       <div class="card">
@@ -1111,9 +879,8 @@
           <button class="prompt-subtab" onclick="selectPromptEditor('rubric_judge_prompt_template', this)">4. 《MV评判规则》13维打分裁判模板</button>
           <button class="prompt-subtab" onclick="selectPromptEditor('storyline_generation_prompt', this)" style="border-color:rgba(16,185,129,0.5); color:#6ee7b7;">5. 🎬 MV Storyline 专项生成提示词 (Tab #5)</button>
           <button class="prompt-subtab" onclick="selectPromptEditor('storyline_judge_prompt_template', this)" style="border-color:rgba(16,185,129,0.5); color:#6ee7b7;">6. ⚖️ Storyline vs 歌曲对比裁判模板 (Tab #5)</button>
-          <button class="prompt-subtab" onclick="selectPromptEditor('mv_storyboard_director_prompt', this)" style="border-color:rgba(168,85,247,0.55); color:#d8b4fe;">7. 🎥 MV 分镜规划 + Omni 24fps 音画口型/性别/节奏导演提示词 (Tab #6 V2.3)</button>
-          <button class="prompt-subtab" onclick="selectPromptEditor('mv_dataset_spec', this)">8. 《MV测试集说明.txt》原文</button>
-          <button class="prompt-subtab" onclick="selectPromptEditor('mv_rubric_md', this)">9. 《MV评判规则.md》三层13维度原文</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('mv_dataset_spec', this)">7. 《MV测试集说明.txt》原文</button>
+          <button class="prompt-subtab" onclick="selectPromptEditor('mv_rubric_md', this)">8. 《MV评判规则.md》三层13维度原文</button>
         </div>
 
         <div id="prompt-editor-desc" style="font-size:12px; color:#a5b4fc; margin-bottom:8px;"></div>
@@ -1156,22 +923,6 @@
     </div>
   </div>
 
-  <!-- V2.3 MV STUDIO INTERACTIVE INSPECTOR & EDITOR DRAWER -->
-  <div class="drawer-overlay" id="mv-studio-drawer-overlay" onclick="if(event.target===this) closeMvStudioDrawer()">
-    <div class="drawer" style="width:min(1260px, 96vw);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
-        <div>
-          <h2 id="mv-drawer-title" style="margin:0; font-size:16px; color:#a5b4fc;">🎥 MV 全链路分镜、毫秒级口型时间轴、同步字幕与合并工作台</h2>
-          <div id="mv-drawer-subtitle" style="color:var(--muted); font-size:12px; margin-top:3px;"></div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn" onclick="closeMvStudioDrawer()">✕ 关闭工作台</button>
-        </div>
-      </div>
-      <div id="mv-drawer-body"></div>
-    </div>
-  </div>
-
   <script>
     let STATE = null;
     let CURRENT_PROMPT_KEY = 'original_audio_prompt';
@@ -1185,9 +936,6 @@
       { key: 'tab4_opt_model_b', label: 'Tab #4 通道B: 优化后Prompt评测模型 B' },
       { key: 'tab5_storyline_model_a', label: '🎬 Tab #5 通道S-A: MV Storyline 创作模型 A (默认 3.8 Flash)' },
       { key: 'tab5_storyline_model_b', label: '🎬 Tab #5 通道S-B: MV Storyline 深度创作模型 B (默认 4 Argon Medium)' },
-      { key: 'tab6_mv_director', label: '🎥 Tab #6: MV 分镜规划 + 口型节奏导演模型 (默认 4 Argon Medium)' },
-      { key: 'tab6_first_frame_imagen', label: '🎨 Tab #6: 分镜首帧图 & 角色卡生成模型 (Nano Banana 2.1)' },
-      { key: 'tab6_omni_video', label: '🎬 Tab #6: 10秒音画口型同步分镜生成模型 (Omni 1.1 Flash)' },
       { key: 'rubric_judge', label: '全局裁判 1: 《MV评判规则》13维度自动打分模型' },
       { key: 'storyline_judge', label: '⚖️ 全局裁判 2: Storyline vs 歌曲对比打分与优化诊断模型' }
     ];
@@ -1199,9 +947,8 @@
       rubric_judge_prompt_template: '【4. 《MV评判规则》自动打分裁判模板】用于指导裁判模型对每个样本的分析输出按 L1/L2/L3 共 13 个维度进行量化打分。',
       storyline_generation_prompt: '【5. 🎬 MV Storyline 专项生成提示词 (V2.2 新增)】用于 Tab #5 基于歌曲歌词、旋律、结构与情绪创作 MV 故事线，内置五大防坑铁律（防歌词字面化、词曲反差诊断、听辨置信度、多遍副歌同词不同境递进、人物与场景池边界锁）。',
       storyline_judge_prompt_template: '【6. ⚖️ Storyline vs 歌曲对比评测裁判模板 (V2.2 新增)】用于将生成的 Storyline 与原歌曲音频逐段比对，输出 0–100 分、6 大对齐维度得分，以及「哪里需要优化、为什么、怎么改」的结构化诊断。',
-      mv_storyboard_director_prompt: '【7. 🎥 MV 分镜规划 + Omni 24fps 音画口型/角色性别/节奏导演提示词 (V2.3 新增)】用于 Tab #6 将 V2.2 生成的 MV Storyline 自动转化为全曲等长（或指定时长）10.0秒分镜脚本，支持三大演绎模式（🎤独唱精准对嘴 / 🎭合唱对唱分角对嘴 / 🎬纯故事无需对嘴），严格对齐 24fps (41.67ms) DSP 人声包络与 $F_0$ 性别基频、6fps 3D Latent 切镜网格与同步字幕。',
-      mv_dataset_spec: '【8. 《MV测试集说明.txt》原文】包含 01–10 测试集的设计原则、输入设定与曲目说明。',
-      mv_rubric_md: '【9. 《MV评判规则.md》原文】三层评估架构及 13 维度细则。'
+      mv_dataset_spec: '【7. 《MV测试集说明.txt》原文】包含 01–10 测试集的设计原则、输入设定与曲目说明。',
+      mv_rubric_md: '【8. 《MV评判规则.md》原文】三层评估架构及 13 维度细则。'
     };
 
     function switchTab(tabId, btnEl) {
@@ -1214,7 +961,7 @@
       } else {
         const idxMap = {
           'tab-step1': 0, 'tab-step2': 1, 'tab-step3': 2,
-          'tab-step4': 3, 'tab-storyline': 4, 'tab-mv-studio': 5, 'tab-step5': 6, 'tab-settings': 7
+          'tab-step4': 3, 'tab-storyline': 4, 'tab-step5': 5, 'tab-settings': 6
         };
         const navBtns = document.querySelectorAll('.nav-tab');
         if (idxMap[tabId] !== undefined && navBtns[idxMap[tabId]]) {
@@ -1227,7 +974,7 @@
       switchTab('tab-settings');
       if (promptKey) {
         const subBtns = document.querySelectorAll('.prompt-subtab');
-        const keys = ['original_audio_prompt', 'optimized_prompt', 'prompt_optimizer_meta_prompt', 'rubric_judge_prompt_template', 'storyline_generation_prompt', 'storyline_judge_prompt_template', 'mv_storyboard_director_prompt', 'mv_dataset_spec', 'mv_rubric_md'];
+        const keys = ['original_audio_prompt', 'optimized_prompt', 'prompt_optimizer_meta_prompt', 'rubric_judge_prompt_template', 'storyline_generation_prompt', 'storyline_judge_prompt_template', 'mv_dataset_spec', 'mv_rubric_md'];
         const idx = keys.indexOf(promptKey);
         if (idx >= 0 && subBtns[idx]) {
           selectPromptEditor(promptKey, subBtns[idx]);
@@ -1282,7 +1029,6 @@
       renderPromptOptimizerTab();
       switchStep4View();
       switchStorylineView();
-      if (typeof renderMvStudioTab === 'function') renderMvStudioTab();
       renderComparisonTab();
     }
 
@@ -1964,7 +1710,7 @@
           const succ = j.succeeded_samples !== undefined ? j.succeeded_samples : done;
           const fail = j.failed_samples || 0;
           const p = j.progress_pct !== undefined ? j.progress_pct : Math.round((done / total) * 100);
-          const stepMsg = j.current_step || `正在并行评测 (${j.track_key || 'mv_studio'}): 已处理 ${done}/${total} 首样本...`;
+          const stepMsg = j.current_step || `正在并行评测 (${j.track_key || 'batch'}): 已处理 ${done}/${total} 首样本...`;
           if (txt) {
             txt.textContent = stepMsg;
             txt.style.color = fail > 0 ? '#fda4af' : '#e2e8f0';
@@ -2435,592 +2181,6 @@
         container.innerHTML = `<div style="color:#fda4af;">加载调试日志失败: ${e.message}</div>`;
       }
     }
-
-
-    function toggleSingleMvCreatorPanel() {
-      const el = document.getElementById('single-mv-creator-panel');
-      if (!el) return;
-      el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function renderMvStudioTab() {
-      if (!STATE) return;
-      const cfg = STATE.config || {};
-      const tm = cfg.tab_models || {};
-      const proj = cfg.project || {};
-
-      const pillEl = document.getElementById('cfg-pill-mv-studio');
-      if (pillEl) {
-        const dirM = (tm.tab6_mv_director && tm.tab6_mv_director.model) || 'gemini-4-argon';
-        const imgM = (tm.tab6_first_frame_imagen && tm.tab6_first_frame_imagen.model) || 'gemini-nano-banana-2.1';
-        const omniM = (tm.tab6_omni_video && tm.tab6_omni_video.model) || 'gemini-omni-1.1-flash-preview';
-        pillEl.innerHTML = `📌 当前 V2.3 流水线模型: 分镜与音画口型导演 <code>${dirM}</code> | 首帧定妆 <code>${imgM}</code> | 视频生成 <code>${omniM}</code> | 对齐控制: <code>24fps DSP + F0基频性别 + Omni [MM:SS.mmm]</code> | Project: <code>${proj.project_id || 'genai-dnb-demo'}</code>`;
-      }
-
-      const qbox = document.getElementById('mv-director-prompt-quick-box');
-      if (qbox && cfg.prompts && cfg.prompts.mv_storyboard_director_prompt) {
-        qbox.value = DRAFT_PROMPTS['mv_storyboard_director_prompt'] || cfg.prompts.mv_storyboard_director_prompt;
-      }
-
-      // Populate single-sample selector
-      const selSingle = document.getElementById('single-mv-sample-select');
-      if (selSingle && STATE.samples) {
-        const prevVal = selSingle.value || '01';
-        selSingle.innerHTML = STATE.samples.map(s => `<option value="${s.sample_id}">#${s.sample_id} — ${s.title}</option>`).join('');
-        if (STATE.samples.some(s => s.sample_id === prevVal)) {
-          selSingle.value = prevVal;
-        }
-      }
-
-      const mvTrack = (STATE.tracks && STATE.tracks['track6_mv_studio'] && STATE.tracks['track6_mv_studio'].samples) || {};
-      const totalSamples = (STATE.samples || []).length;
-      let completedCount = 0;
-      let planReadyCount = 0;
-      let totalActsCount = 0;
-      let totalSubCues = 0;
-
-      for (const sid of Object.keys(mvTrack)) {
-        const rec = mvTrack[sid];
-        if (!rec) continue;
-        if (rec.status === 'completed') completedCount++;
-        if (rec.status === 'plan_ready' || rec.status === 'completed') {
-          planReadyCount++;
-          totalActsCount += Number(rec.num_acts || (rec.mv_plan && rec.mv_plan.acts ? rec.mv_plan.acts.length : 0));
-          totalSubCues += Number((rec.subtitle_cues || []).length);
-        }
-      }
-
-      const sumEl = document.getElementById('summary-mv-studio');
-      if (sumEl) {
-        sumEl.innerHTML = `
-          <div class="metric-box">
-            <div class="metric-label">已完成分镜规划 / 已合流成片 MV 数</div>
-            <div class="metric-val" style="color:#6ee7b7;">${planReadyCount} 规划 / ${completedCount} 成片 <span style="font-size:12px; color:var(--muted);">(共 ${totalSamples} 首)</span></div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-label">累计生成 10s 分镜幕数 (Acts)</div>
-            <div class="metric-val" style="color:#a5b4fc;">${totalActsCount} 幕 <span style="font-size:12px; color:var(--muted);">(${totalActsCount * 10}s 视频)</span></div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-label">24fps 毫秒级同步字幕总条数 (.srt/.vtt)</div>
-            <div class="metric-val" style="color:#fcd34d;">${totalSubCues} 条</div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-label">口型与节奏控制引擎</div>
-            <div style="font-size:12.5px; font-weight:700; color:#67e8f9; margin-top:6px;">
-              24fps DSP (220-3600Hz) × Omni [MM:SS.mmm]
-            </div>
-          </div>
-        `;
-      }
-
-      const tbody = document.getElementById('tbody-mv-studio');
-      if (!tbody) return;
-      let html = '';
-
-      for (const s of STATE.samples) {
-        const sid = s.sample_id;
-        const item = mvTrack[sid];
-        const status = item ? item.status : 'not_run';
-        const plan = (item && item.mv_plan) || {};
-        const acts = plan.acts || [];
-        const vprof = (item && item.vocal_gender_profile) || {};
-        const subCues = (item && item.subtitle_cues) || [];
-
-        let statusHtml = '<span class="badge">待生成 MV</span>';
-        const dispDur = item ? (item.exact_mv_duration_sec || item.target_duration_sec || 20) : 20;
-        const dispActs = item ? (item.num_acts || acts.length || 2) : 2;
-        const fullTag = (item && item.is_full_song) ? '🎵全曲等长 ' : '';
-        if (status === 'completed') {
-          statusHtml = `<span class="badge badge-emerald">✓ MV 已合成 (${fullTag}${dispDur}s · ${dispActs}幕)</span>`;
-        } else if (status === 'plan_ready') {
-          statusHtml = `<span class="badge badge-amber">📝 分镜与首帧已就绪 (${fullTag}${dispDur}s · ${dispActs}幕)</span>`;
-        } else if (status === 'error') {
-          const shortErr = (item.error || '执行异常').split('\n')[0].slice(0, 90);
-          statusHtml = `
-            <span class="badge badge-rose" style="cursor:pointer;" onclick="openMvStudioDrawer('${sid}')">✕ 失败 (${item.error_type || 'Error'})</span>
-            <div style="color:#fda4af; font-size:11px; margin-top:4px; word-break:break-word;">${shortErr}</div>
-          `;
-        }
-
-        if (vprof.locked_lead_gender || item?.mv_performance_mode) {
-          const leadChar = plan.lead_character || {};
-          const suppChar = plan.supporting_character || {};
-          const pMode = item.mv_performance_mode || vprof.mv_performance_mode || 'solo_vocal_lipsync';
-          const pModeTag = pMode === 'pure_story_cinematic'
-            ? '<span class="badge badge-amber" style="margin-top:5px;">🎬 纯故事·无需对嘴</span>'
-            : (pMode === 'duet_chorus_lipsync'
-                ? '<span class="badge badge-cyan" style="margin-top:5px;">🎭 合唱/对唱分角对嘴</span>'
-                : '<span class="badge badge-indigo" style="margin-top:5px;">🎤 独唱精准对嘴</span>');
-          statusHtml += `
-            <div>${pModeTag}</div>
-            <div style="font-size:11px; color:var(--muted); margin-top:5px; line-height:1.45;">
-              🎤 主角锁: <strong style="color:#93c5fd;">${(vprof.locked_lead_gender || '').toUpperCase()}</strong> (${leadChar.name_cn || 'Lead'})<br/>
-              🎶 配角锁: <strong>${(vprof.locked_support_gender || '').toUpperCase()}</strong> (${suppChar.singing_permission === 'forbidden_silent_acting' ? '禁开口仅演戏' : '合唱/轮唱对嘴'})<br/>
-              ⏱️ 耗时: ${item.total_elapsed_sec || '—'}s
-            </div>
-          `;
-        }
-
-        // Storyboard & 24fps Lip-sync summary
-        let planHtml = '<span style="color:var(--muted); font-size:12px;">点击上方「一键并行批量生成」或右侧「单曲生成 MV」自动规划全曲分镜、分析不同角色/性别词曲节奏并生成 MV</span>';
-        if ((status === 'completed' || status === 'plan_ready') && acts.length) {
-          const pMode = (item && item.mv_performance_mode) || vprof.mv_performance_mode || 'solo_vocal_lipsync';
-          const renderActBox = a => {
-            const mbs = a.micro_beats || [];
-            const mbTags = mbs.map(mb => {
-              const isVoc = mb.is_vocal_open_mouth;
-              const f0Str = mb.est_f0_hz && mb.est_f0_hz > 0 ? ` ${Math.round(mb.est_f0_hz)}Hz` : '';
-              const cadShort = mb.rhythm_cadence === 'fast_syncopated_staccato' ? '⚡快切' : (mb.rhythm_cadence === 'slow_sustained_legato' ? '🌊抒情长音' : (mb.rhythm_cadence === 'mid_melodic_pop' ? '🎵中速律动' : '🥁器乐节拍'));
-              let badgeCls = 'badge-indigo';
-              let spkTag = `🔒闭嘴 (${cadShort})`;
-              if (pMode === 'pure_story_cinematic') {
-                badgeCls = 'badge-amber';
-                spkTag = `🎬纯故事演戏 (${cadShort})`;
-              } else if (isVoc) {
-                badgeCls = mb.active_speaker === 'BOTH' ? 'badge-cyan' : (mb.active_speaker === 'SUPPORT' ? 'badge-amber' : 'badge-emerald');
-                spkTag = `🎤${mb.active_speaker}${f0Str} (${cadShort})`;
-              }
-              return `<span class="badge ${badgeCls}" style="font-size:10.5px; margin-right:3px; margin-bottom:3px;" title="${mb.sung_lyrics || mb.subtitle_text || ''}">[${mb.mm_ss_mmm_start || '00:00.000'}→${mb.mm_ss_mmm_end || '00:10.000'}] ${spkTag} (${mb.roll_type || 'A_ROLL'})</span>`;
-            }).join('');
-            return `
-              <div style="background:#0b1120; border-left:3px solid #6366f1; padding:6px 8px; border-radius:5px; margin-bottom:6px; font-size:11.5px;">
-                <div style="font-weight:700; color:#e2e8f0;">${a.act_title_cn || ('Act ' + a.act_index)} <span style="color:var(--muted); font-weight:400;">(${a.global_start_sec}s–${a.global_end_sec}s)</span></div>
-                <div style="margin-top:4px;">${mbTags}</div>
-              </div>
-            `;
-          };
-          const headActs = acts.slice(0, 4).map(renderActBox).join('');
-          const tailActs = acts.length > 4
-            ? `<details style="margin-top:4px;"><summary style="cursor:pointer; font-size:11.5px; color:#a5b4fc; font-weight:700;">➕ 展开查看剩余 ${acts.length - 4} 幕全曲分镜 (Act 5 ~ Act ${acts.length})</summary><div style="margin-top:6px;">${acts.slice(4).map(renderActBox).join('')}</div></details>`
-            : '';
-          planHtml = `
-            <div style="font-size:12px; margin-bottom:6px;">
-              <strong>🎯 故事线:</strong> ${plan.storyline_logline || '—'}
-              <span class="badge badge-cyan" style="margin-left:4px;">Motif: ${plan.core_visual_motif || '—'}</span>
-            </div>
-            ${headActs}${tailActs}
-          `;
-        }
-
-        // First frames & shot videos
-        let shotsHtml = '<span style="color:var(--muted); font-size:12px;">—</span>';
-        if (item && item.shot_first_frame_urls && item.shot_first_frame_urls.length) {
-          const ffUrls = item.shot_first_frame_urls || [];
-          const vidUrls = item.shot_video_urls || [];
-          const renderShotCard = (u, idx) => {
-            const vUrl = vidUrls[idx] || '';
-            return `
-              <div style="background:#0b1120; border:1px solid var(--border); border-radius:6px; padding:5px; width:108px; text-align:center;">
-                <a href="${u}" target="_blank" title="点击查看第 ${idx+1} 幕起始首帧 (<FIRST_FRAME>)">
-                  <img src="${u}?t=${encodeURIComponent(item.evaluated_at||'')}" style="width:96px; height:56px; object-fit:cover; border-radius:4px; border:1px solid #334155;" />
-                </a>
-                <div style="font-size:10.5px; font-weight:700; color:#cbd5e1; margin-top:3px;">Act ${idx+1} (${idx*10}-${(idx+1)*10}s)</div>
-                ${vUrl ? `<a href="${vUrl}" target="_blank" style="font-size:10.5px; color:#6ee7b7; text-decoration:none;">▶️ 分镜视频</a>` : `<span style="font-size:10px; color:var(--muted);">首帧已就绪</span>`}
-              </div>
-            `;
-          };
-          const headShots = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + ffUrls.slice(0, 6).map((u, i) => renderShotCard(u, i)).join('') + `</div>`;
-          const tailShots = ffUrls.length > 6
-            ? `<details style="margin-top:6px;"><summary style="cursor:pointer; font-size:11px; color:#67e8f9; font-weight:700;">🎞️ 展开全部 ${ffUrls.length} 幕首帧与分镜视频</summary><div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">${ffUrls.slice(6).map((u, i) => renderShotCard(u, i + 6)).join('')}</div></details>`
-            : '';
-          shotsHtml = headShots + tailShots;
-        }
-
-        // Final merged MV player
-        let finalMvHtml = '<span style="color:var(--muted); font-size:12px;">尚未合成最终 MV</span>';
-        const resolvedFinalVidUrl = (item && (item.final_video_url || item.final_clean_video_url))
-          || ((status === 'completed') ? `/api/v2/mv_studio/media/${sid}/final_mv_subtitled.mp4` : '');
-        const resolvedCleanVidUrl = (item && item.final_clean_video_url)
-          || ((status === 'completed') ? `/api/v2/mv_studio/media/${sid}/final_mv_clean.mp4` : '');
-        if (resolvedFinalVidUrl) {
-          const cacheBust = encodeURIComponent((item && item.evaluated_at) || Date.now());
-          finalMvHtml = `
-            <div>
-              <video controls playsinline preload="metadata" style="width:245px; max-height:145px; border-radius:8px; background:#000; border:1px solid #334155;" src="${resolvedFinalVidUrl}?t=${cacheBust}">
-                ${(item && item.vtt_url) ? `<track kind="subtitles" srclang="zh" label="同步歌词字幕" src="${item.vtt_url}?t=${cacheBust}" default />` : ''}
-              </video>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:5px; font-size:11px;">
-                <a href="${resolvedFinalVidUrl}" target="_blank" style="color:#6ee7b7; text-decoration:none; font-weight:700;">⬇️ 字幕版 MV</a>
-                ${resolvedCleanVidUrl ? `<a href="${resolvedCleanVidUrl}" target="_blank" style="color:#93c5fd; text-decoration:none;">⬇️ 纯享版 MV</a>` : ''}
-                ${(item && item.srt_url) ? `<a href="${item.srt_url}" target="_blank" style="color:#fcd34d; text-decoration:none;">📄 .SRT字幕 (${subCues.length}条)</a>` : ''}
-              </div>
-            </div>
-          `;
-        } else if (status === 'plan_ready') {
-          const readyVideosCnt = ((item && item.shot_video_urls) || []).filter(Boolean).length;
-          finalMvHtml = `
-            <div style="font-size:11.5px; color:#fcd34d; margin-bottom:6px;">
-              ${readyVideosCnt > 0 ? `⏳ 已完成 ${readyVideosCnt}/${dispActs} 幕视频渲染，可打开右侧「工作台」逐幕预览` : `Phase 1 分镜与首帧已就绪（共 ${subCues.length} 条同步字幕）`}
-            </div>
-            <button class="btn btn-emerald" onclick="rerenderSampleMvFromPlan('${sid}', 'full_auto')">🎬 立即渲染并合并成片</button>
-          `;
-        }
-
-        const imgsThumb = (s.images || []).map(im => `<img src="${im.url}" style="width:28px; height:28px; object-fit:cover; border-radius:4px; border:1px solid var(--border);" title="${im.name}" />`).join(' ');
-
-        html += `
-          <tr>
-            <td><strong>#${sid}</strong></td>
-            <td>
-              <div style="font-weight:700;">${s.title}</div>
-              <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
-                ${imgsThumb}
-                <span class="badge badge-indigo">${s.genre}</span>
-              </div>
-              <div style="font-size:11px; color:var(--muted); margin-top:4px;">
-                Storyline源: <code>${(item && item.storyline_source_used) || '自动关联 #5'}</code>
-              </div>
-            </td>
-            <td>${statusHtml}</td>
-            <td>${planHtml}</td>
-            <td>${shotsHtml}</td>
-            <td>${finalMvHtml}</td>
-            <td>
-              <div style="display:flex; flex-direction:column; gap:6px;">
-                <button class="btn" onclick="openMvStudioDrawer('${sid}')">🎬 分镜/口型/字幕工作台</button>
-                <button class="btn btn-primary" onclick="runSingleSampleMv('${sid}')">▶️ 生成/重跑此 MV</button>
-              </div>
-            </td>
-          </tr>
-        `;
-      }
-      tbody.innerHTML = html;
-    }
-
-    function collectMvStudioParams() {
-      const startVal = document.getElementById('mv-audio-start-sec').value.trim();
-      const rawDur = document.getElementById('mv-target-duration').value;
-      const parsedDur = rawDur !== '' && rawDur !== null && rawDur !== undefined ? parseInt(rawDur, 10) : 0;
-      return {
-        storyline_source: document.getElementById('mv-storyline-source').value,
-        target_duration_sec: isNaN(parsedDur) ? 0 : parsedDur,
-        mv_performance_mode: document.getElementById('mv-performance-mode').value,
-        shot_continuity_mode: document.getElementById('mv-continuity-mode').value,
-        execution_mode: document.getElementById('mv-execution-mode').value,
-        aspect_ratio: document.getElementById('mv-aspect-ratio').value,
-        burn_subtitles: document.getElementById('mv-burn-subtitles').value === 'true',
-        audio_start_sec: startVal !== '' ? parseFloat(startVal) : null,
-        max_workers: parseInt(document.getElementById('workers-mv-studio').value || '2', 10)
-      };
-    }
-
-    async function runMvStudioBatch(forceRerun) {
-      const params = collectMvStudioParams();
-      params.force_rerun = Boolean(forceRerun);
-      const resp = await fetch('/api/v2/mv_studio/run_batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
-      });
-      const data = await resp.json();
-      if (data.job_id) {
-        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
-      }
-    }
-
-    async function runSingleSampleMv(sampleId) {
-      const params = collectMvStudioParams();
-      params.sample_ids = [sampleId];
-      params.max_workers = 1;
-      params.force_rerun = true;
-      const resp = await fetch('/api/v2/mv_studio/run_batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
-      });
-      const data = await resp.json();
-      if (data.job_id) {
-        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
-      }
-    }
-
-    async function runSingleSampleMvFromSelector() {
-      const sid = document.getElementById('single-mv-sample-select').value || '01';
-      await runSingleSampleMv(sid);
-    }
-
-    function readFileAsBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(String(e.target.result).split(',')[1] || '');
-        reader.onerror = err => reject(err);
-        reader.readAsDataURL(file);
-      });
-    }
-
-    async function createAndRunCustomSingleMv() {
-      const img1Input = document.getElementById('custom-mv-img1');
-      const img2Input = document.getElementById('custom-mv-img2');
-      const audInput = document.getElementById('custom-mv-audio');
-      const statusEl = document.getElementById('custom-mv-upload-status');
-
-      if (!img1Input.files || !img1Input.files.length) {
-        alert('请至少选择 1 张主角/封面参考图 (支持 JPG/PNG)！');
-        return;
-      }
-      if (!audInput.files || !audInput.files.length) {
-        alert('请上传歌曲音频文件 (.mp3/.wav/.m4a)，以便自动分析 24fps 时间戳与角色词曲节奏控制 Omni！');
-        return;
-      }
-      statusEl.textContent = '⏳ 正在上传素材并初始化单曲 MV 流水线...';
-      try {
-        const img1B64 = await readFileAsBase64(img1Input.files[0]);
-        const img2B64 = (img2Input.files && img2Input.files.length) ? await readFileAsBase64(img2Input.files[0]) : '';
-        const audB64 = (audInput.files && audInput.files.length) ? await readFileAsBase64(audInput.files[0]) : '';
-        const params = collectMvStudioParams();
-
-        const payload = Object.assign({}, params, {
-          title: document.getElementById('custom-mv-title').value.trim() || img1Input.files[0].name,
-          language: document.getElementById('custom-mv-lang').value,
-          prompt_text: document.getElementById('custom-mv-prompt').value.trim(),
-          image1_b64: img1B64,
-          image2_b64: img2B64,
-          audio_b64: audB64
-        });
-
-        const resp = await fetch('/api/v2/mv_studio/create_custom_single', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data.ok) {
-          statusEl.textContent = '❌ 创建失败: ' + (data.detail || resp.statusText);
-          return;
-        }
-        statusEl.textContent = `✅ 已创建自定义样本 #${data.sample_id}，正在生成 MV...`;
-        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
-        statusEl.textContent = `🎉 自定义样本 #${data.sample_id} MV 生成完成！`;
-      } catch (err) {
-        statusEl.textContent = '❌ 异常: ' + err.message;
-      }
-    }
-
-    async function saveEditedMvDirectorPrompt() {
-      const txt = document.getElementById('mv-director-prompt-quick-box').value;
-      DRAFT_PROMPTS['mv_storyboard_director_prompt'] = txt;
-      await fetch('/api/v2/save_mv_director_prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mv_storyboard_director_prompt: txt })
-      });
-      await reloadFromDisk();
-      alert('已保存 V2.3 MV 毫秒级分镜规划与口型/节奏对齐提示词！');
-    }
-
-    function openMvStudioDrawer(sampleId) {
-      const s = (STATE.samples || []).find(x => x.sample_id === sampleId);
-      const mvTrack = (STATE.tracks && STATE.tracks['track6_mv_studio'] && STATE.tracks['track6_mv_studio'].samples) || {};
-      const item = mvTrack[sampleId];
-      document.getElementById('mv-drawer-title').textContent = `🎥 样本 #${sampleId} — ${s ? s.title : sampleId} · MV 全链路分镜与字幕同步工作台`;
-      document.getElementById('mv-drawer-subtitle').textContent = item
-        ? `演绎模式: ${item.mv_performance_mode_label || item.mv_performance_mode || '自动'} | Storyline源: ${item.storyline_source_used || '自动'} | 时长: ${item.is_full_song ? '🎵全曲等长 ' : ''}${item.exact_mv_duration_sec || item.target_duration_sec || 20}s (${item.num_acts || 2}幕×10s自动分镜) | 状态: ${item.status}`
-        : '尚未运行 V2.3 MV 生成流水线';
-
-      const bodyEl = document.getElementById('mv-drawer-body');
-      if (!item) {
-        bodyEl.innerHTML = `
-          <div class="card" style="background:var(--panel2);">
-            <div style="margin-bottom:10px;">该样本尚未执行 V2.3 MV 生成。点击下方按钮立即启动：</div>
-            <button class="btn btn-primary" onclick="closeMvStudioDrawer(); runSingleSampleMv('${sampleId}');">🚀 立即生成 Sample #${sampleId} MV</button>
-          </div>
-        `;
-        document.getElementById('mv-studio-drawer-overlay').classList.add('open');
-        return;
-      }
-
-      if (item.status === 'error') {
-        bodyEl.innerHTML = `
-          <div class="card" style="background:rgba(244,63,94,0.1); border-color:rgba(244,63,94,0.4);">
-            <div style="font-weight:700; color:#fb7185; margin-bottom:6px;">❌ 执行失败 [${item.error_stage || 'MV_STAGE'}] (${item.error_type || 'Error'})</div>
-            <pre style="color:#fda4af;">${item.error || ''}</pre>
-            ${item.traceback ? `<details open style="margin-top:8px;"><summary style="cursor:pointer; color:#fcd34d;">完整 Python Traceback</summary><pre>${item.traceback}</pre></details>` : ''}
-            <div style="margin-top:10px;">
-              <button class="btn btn-primary" onclick="closeMvStudioDrawer(); runSingleSampleMv('${sampleId}');">↻ 重新运行此样本 MV</button>
-            </div>
-          </div>
-        `;
-        document.getElementById('mv-studio-drawer-overlay').classList.add('open');
-        return;
-      }
-
-      const plan = item.mv_plan || {};
-      const acts = plan.acts || [];
-      const leadC = plan.lead_character || {};
-      const suppC = plan.supporting_character || {};
-      const subCues = item.subtitle_cues || [];
-      const cacheBust = encodeURIComponent(item.evaluated_at || Date.now());
-
-      const actCardsHtml = acts.map((act, idx) => {
-        const ffUrl = (item.shot_first_frame_urls && item.shot_first_frame_urls[idx]) || act.first_frame_url || '';
-        const vidUrl = (item.shot_video_urls && item.shot_video_urls[idx]) || act.shot_video_url || '';
-        const compPrompt = (item.compiled_omni_prompts && item.compiled_omni_prompts[idx]) || act.compiled_omni_prompt || '';
-        const dspWins = (item.dsp_windows_per_act && item.dsp_windows_per_act[idx]) || [];
-        const dspStr = dspWins.map(w => {
-          const f0Tag = w.est_f0_hz ? `(${Math.round(w.est_f0_hz)}Hz·${w.acoustic_gender_hint || 'vocal'}·${w.rhythm_cadence || ''})` : '';
-          return `[${w.mm_ss_mmm_start}→${w.mm_ss_mmm_end}] ${w.is_vocal_active ? ('🎤VOCAL_OPEN' + f0Tag) : '🔒INSTRUMENTAL_CLOSED'}`;
-        }).join(' | ');
-
-        const mbRows = (act.micro_beats || []).map(mb => `
-          <tr>
-            <td>
-              <code>[${mb.mm_ss_mmm_start} → ${mb.mm_ss_mmm_end}]</code>
-              <div style="font-size:10.5px; color:#67e8f9; margin-top:2px;">
-                ${mb.est_f0_hz ? `基频: ${Math.round(mb.est_f0_hz)}Hz (${mb.acoustic_gender_hint || '—'})` : '器乐/纯叙事'} | 律动: <code>${mb.rhythm_cadence || '—'}</code>
-              </div>
-            </td>
-            <td><span class="badge ${mb.is_vocal_open_mouth ? 'badge-emerald' : 'badge-indigo'}">${mb.is_vocal_open_mouth ? ('🎤 ' + mb.active_speaker + ' 张嘴对嘴') : (item.mv_performance_mode === 'pure_story_cinematic' ? '🎬 纯故事不对嘴 (NONE)' : '🔒 器乐闭嘴 (NONE)')}</span></td>
-            <td><span class="badge badge-cyan">${mb.roll_type || 'A_ROLL'}</span><div style="font-size:11px; color:var(--muted); margin-top:2px;">${mb.camera_and_shot_cn || ''}</div></td>
-            <td style="font-size:11.5px;">
-              <div><strong>Lead:</strong> ${mb.lead_action_and_mouth_en || ''}</div>
-              <div style="color:var(--muted); margin-top:2px;"><strong>Support:</strong> ${mb.support_action_and_mouth_en || ''}</div>
-            </td>
-            <td style="color:#fcd34d; font-weight:600;">${mb.subtitle_text || '<span style="color:var(--muted); font-weight:400;">(器乐留白无字幕)</span>'}</td>
-          </tr>
-        `).join('');
-
-        return `
-          <div class="card" style="background:var(--panel2); margin-bottom:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-              <div>
-                <strong style="font-size:14px; color:#a5b4fc;">🎬 第 ${act.act_index} 幕: ${act.act_title_cn || ''} (${act.global_start_sec}s – ${act.global_end_sec}s)</strong>
-                <span class="badge badge-indigo" style="margin-left:6px;">原曲区间: ${act.song_source_start_sec || 0}s–${act.song_source_end_sec || 10}s</span>
-                ${act.render_engine ? `<span class="badge badge-emerald" style="margin-left:6px;">渲染引擎: ${act.render_engine}</span>` : ''}
-              </div>
-            </div>
-            <div style="font-size:11.5px; color:#67e8f9; margin-bottom:8px;">
-              <strong>🎚️ 24fps (41.667ms) DSP 220Hz–3600Hz 人声频带实测窗口:</strong> <code>${dspStr || '已对齐'}</code>
-            </div>
-
-            <div class="grid-2" style="margin-bottom:10px;">
-              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center;">
-                <div style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-bottom:6px;">🖼️ 本幕起始首帧 (<code>&lt;FIRST_FRAME&gt;image_0.png</code>)</div>
-                ${ffUrl ? `<img src="${ffUrl}?t=${cacheBust}" style="max-width:100%; max-height:210px; border-radius:6px; border:1px solid #334155;" />` : '<div style="color:var(--muted);">无首帧</div>'}
-              </div>
-              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center;">
-                <div style="font-size:11.5px; font-weight:700; color:#6ee7b7; margin-bottom:6px;">🎞️ 本幕 10.0s 独立分镜视频 (<code>shot_0${act.act_index}_10s.mp4</code>)</div>
-                ${vidUrl ? `<video controls preload="metadata" src="${vidUrl}?t=${cacheBust}" style="max-width:100%; max-height:210px; border-radius:6px; background:#000;"></video>` : '<div style="color:var(--muted); padding:40px 0;">当前为 Phase 1 规划模式，点击上方「按微调提示词渲染成片」即可生成视频</div>'}
-              </div>
-            </div>
-
-            <div style="overflow-x:auto; margin-bottom:8px;">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width:155px;">24fps 时间戳 [MM:SS.mmm]</th>
-                    <th style="width:140px;">开口角色 &amp; 口型状态</th>
-                    <th style="width:170px;">A/B/C-Roll 景别与运镜</th>
-                    <th>角色动作与严格口型隔离指令 (Mouth Isolation)</th>
-                    <th style="width:200px;">同步字幕文本 (Subtitle)</th>
-                  </tr>
-                </thead>
-                <tbody>${mbRows}</tbody>
-              </table>
-            </div>
-
-            <details>
-              <summary style="cursor:pointer; font-size:12px; font-weight:700; color:#fcd34d;">
-                🛠️ 展开查看 / 微调第 ${act.act_index} 幕编译后的 Omni 1.1 Flash 原生 <code>[MM:SS.mmm]</code> 提示词 (<code># References</code> / <code># Sources</code> / <code># Descriptions</code> / <code># Transcriptions</code>)
-              </summary>
-              <textarea id="drawer-omni-prompt-${sampleId}-${idx}" rows="9" style="margin-top:6px; width:100%; font-family:monospace; font-size:11.5px;">${compPrompt}</textarea>
-            </details>
-          </div>
-        `;
-      }).join('');
-
-      const drawerFinalVidUrl = item.final_video_url || item.final_clean_video_url || (item.status === 'completed' ? `/api/v2/mv_studio/media/${sampleId}/final_mv_subtitled.mp4` : '');
-      const drawerCleanVidUrl = item.final_clean_video_url || (item.status === 'completed' ? `/api/v2/mv_studio/media/${sampleId}/final_mv_clean.mp4` : '');
-      bodyEl.innerHTML = `
-        <div class="grid-2" style="margin-bottom:14px;">
-          <div class="card" style="background:var(--panel2); margin-bottom:0;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <strong style="font-size:14px; color:#6ee7b7;">🎬 合并成品 MV (含毫秒级同步字幕烧录 + 母带音轨)</strong>
-              <div style="display:flex; gap:6px;">
-                ${drawerFinalVidUrl ? `<a class="btn btn-emerald" href="${drawerFinalVidUrl}" download="mv_${sampleId}_subtitled.mp4" style="text-decoration:none;">⬇️ 下载字幕版成片</a>` : ''}
-                ${drawerCleanVidUrl ? `<a class="btn" href="${drawerCleanVidUrl}" download="mv_${sampleId}_clean.mp4" style="text-decoration:none;">⬇️ 下载无字纯享版</a>` : ''}
-                ${item.srt_url ? `<a class="btn" href="${item.srt_url}" download="mv_${sampleId}.srt" style="text-decoration:none;">📄 下载 .SRT 字幕</a>` : ''}
-              </div>
-            </div>
-            ${drawerFinalVidUrl
-              ? `<video controls autoplay loop playsinline style="width:100%; max-height:340px; border-radius:8px; background:#000; border:1px solid #334155;" src="${drawerFinalVidUrl}?t=${cacheBust}">
-                   ${item.vtt_url ? `<track kind="subtitles" srclang="zh" label="同步字幕" src="${item.vtt_url}?t=${cacheBust}" default />` : ''}
-                 </video>`
-              : `<div style="padding:40px; text-align:center; color:var(--muted); border:1px dashed var(--border); border-radius:8px;">尚未完成全部幕合并，下方可实时预览已生成的各幕 10s 分镜视频，或点击右侧「按微调提示词重新渲染并合并 MV」</div>`
-            }
-          </div>
-
-          <div class="card" style="background:var(--panel2); margin-bottom:0;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <strong style="font-size:14px; color:#93c5fd;">🎙️ 声画性别闭环锁定 &amp; 主音轨 / 重绘控制台</strong>
-              <button class="btn btn-primary" onclick="rerenderSampleMvFromPlan('${sampleId}', 'full_auto')">🎬 按微调提示词重新渲染并合并 MV</button>
-            </div>
-            <div style="margin-bottom:10px;">
-              <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">🎵 匹配时长主音轨 (${item.audio_source_summary || ''}):</div>
-              <audio controls src="${item.master_audio_url}?t=${cacheBust}" style="width:100%; height:36px;"></audio>
-            </div>
-            <div class="grid-2" style="gap:10px; margin-bottom:10px;">
-              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; gap:10px; align-items:center;">
-                ${item.lead_character_url ? `<img src="${item.lead_character_url}?t=${cacheBust}" style="width:52px; height:52px; object-fit:cover; border-radius:6px;" />` : ''}
-                <div style="font-size:11.5px;">
-                  <div style="font-weight:700; color:#6ee7b7;">主角 <code>&lt;IMAGE_REF_0&gt;</code>: ${leadC.name_cn || 'Lead'} (${(leadC.gender || '').toUpperCase()})</div>
-                  <div style="color:var(--muted);">${leadC.matched_vocal_timbre_en || ''}</div>
-                </div>
-              </div>
-              <div style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; gap:10px; align-items:center;">
-                ${item.supporting_character_url ? `<img src="${item.supporting_character_url}?t=${cacheBust}" style="width:52px; height:52px; object-fit:cover; border-radius:6px;" />` : ''}
-                <div style="font-size:11.5px;">
-                  <div style="font-weight:700; color:#fcd34d;">配角 <code>&lt;IMAGE_REF_1&gt;</code>: ${suppC.name_cn || 'Support'} (${(suppC.gender || '').toUpperCase()})</div>
-                  <div style="color:var(--muted);">演唱权限: ${suppC.singing_permission || 'allowed'}</div>
-                </div>
-              </div>
-            </div>
-            <div style="font-size:12px; line-height:1.55; background:#090d16; padding:8px 10px; border-radius:6px; border:1px solid var(--border);">
-              <div><strong>🎭 演绎与对嘴模式:</strong> <span style="color:#fcd34d; font-weight:700;">${item.mv_performance_mode_label || item.mv_performance_mode || '—'}</span></div>
-              <div><strong>🎯 继承 Storyline 主线:</strong> ${plan.storyline_logline || '—'}</div>
-              <div><strong>🔑 核心视觉符号 (Motif):</strong> <span style="color:#67e8f9;">${plan.core_visual_motif || '—'}</span></div>
-              <div><strong>📝 同步字幕轨 (.srt):</strong> 共 ${subCues.length} 条精确对齐至 24fps 时间窗口的字幕</div>
-            </div>
-          </div>
-        </div>
-
-        ${actCardsHtml}
-      `;
-      document.getElementById('mv-studio-drawer-overlay').classList.add('open');
-    }
-
-    function closeMvStudioDrawer() {
-      document.getElementById('mv-studio-drawer-overlay').classList.remove('open');
-    }
-
-    async function rerenderSampleMvFromPlan(sampleId, execMode) {
-      const mvTrack = (STATE.tracks && STATE.tracks['track6_mv_studio'] && STATE.tracks['track6_mv_studio'].samples) || {};
-      const item = mvTrack[sampleId];
-      const acts = (item && item.mv_plan && item.mv_plan.acts) || [];
-      const editedPrompts = [];
-      for (let i = 0; i < acts.length; i++) {
-        const el = document.getElementById(`drawer-omni-prompt-${sampleId}-${i}`);
-        if (el && el.value.trim()) {
-          editedPrompts.push(el.value.trim());
-        }
-      }
-      closeMvStudioDrawer();
-      const resp = await fetch('/api/v2/mv_studio/render_from_plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sample_id: sampleId,
-          compiled_omni_prompts: editedPrompts.length ? editedPrompts : null,
-          execution_mode: execMode || 'full_auto',
-          burn_subtitles: document.getElementById('mv-burn-subtitles').value === 'true'
-        })
-      });
-      const data = await resp.json();
-      if (data.job_id) {
-        await pollJobUntilDone(data.job_id, 'prog-mv-studio');
-      }
-    }
-
 
     window.addEventListener('DOMContentLoaded', reloadFromDisk);
   </script>

@@ -25,7 +25,6 @@ from app.config import (
     DATA_DIR,
     DEFAULT_MV_DATASET_SPEC_TXT,
     DEFAULT_MV_RUBRIC_MD,
-    DEFAULT_MV_STORYBOARD_DIRECTOR_PROMPT,
     DEFAULT_OPTIMIZATION_WHY,
     DEFAULT_OPTIMIZED_PROMPT,
     DEFAULT_ORIGINAL_AUDIO_PROMPT,
@@ -36,7 +35,6 @@ from app.config import (
     MANIFEST_PATH,
     MODEL_ARGON_4,
     MODEL_FLASH_38,
-    MV_STUDIO_OUTPUTS_DIR,
     PROJECT_ROOT,
     RUNTIME_LOG_PATH,
     RUNS_V2_DIR,
@@ -58,16 +56,6 @@ from app.evaluation_engine import (
     TRACK_KEY_ALIASES,
     start_parallel_track_job,
 )
-from app.mv_generation_engine import (
-    _build_synchronized_subtitles_and_burn_in,
-    _extract_last_frame_from_mp4,
-    _invoke_mv_omni_10s_clip,
-    _normalize_omni_mv_prompt,
-    _probe_media_duration,
-    compile_mv_storyline_omni_prompt_for_act,
-    run_single_sample_mv_studio_pipeline,
-    start_parallel_mv_studio_batch_job,
-)
 from app.storage import (
     TRACK_FILES,
     _LAST_ASSET_RESOLUTION_TRACES,
@@ -84,7 +72,7 @@ from app.storage import (
     upload_to_gcs_universal,
 )
 
-app = FastAPI(title="MV Multimodal Evaluation, Storyline & Generation Studio v2.3.1", version="2.3.1")
+app = FastAPI(title="MV Multimodal Evaluation & Storyline Studio v2.2", version="2.2.0")
 
 
 @app.middleware("http")
@@ -383,21 +371,6 @@ def build_normalized_ui_state() -> dict[str, Any]:
             "avg_l3": round(sum(l3_list) / cnt, 1) if cnt else 0.0,
         }
         summaries[backend_key] = summaries[ui_key]
-
-    # Include V2.3 Track 6 MV Studio records & summary
-    t6_store = copy.deepcopy(raw_tracks.get("track6_mv_studio", {"samples": {}}))
-    t6_samples = t6_store.get("samples", {})
-    t6_completed = [r for r in t6_samples.values() if r.get("status") == "completed"]
-    t6_shots = sum(int(r.get("num_shots", 0) or len(r.get("shots", []))) for r in t6_completed)
-    t6_subs = sum(int(r.get("subtitle_count", 0) or 0) for r in t6_completed)
-    ui_tracks["track6_mv_studio"] = t6_store
-    ui_tracks["step6_mv_studio"] = t6_store
-    summaries["track6_mv_studio"] = {
-        "completed_count": len(t6_completed),
-        "total_shots_rendered": t6_shots,
-        "total_subtitles_synced": t6_subs,
-    }
-    summaries["step6_mv_studio"] = summaries["track6_mv_studio"]
 
     st3_raw = copy.deepcopy(raw_tracks.get("step3_prompt_opt", {}))
     why_data = st3_raw.get("why_data") or DEFAULT_OPTIMIZATION_WHY
@@ -861,346 +834,6 @@ async def api_v2_debug_clear_logs() -> JSONResponse:
             pass
     log_runtime("INFO", "LOG_CLEAR", "运行日志已被手动清空")
     return JSONResponse({"ok": True})
-
-
-
-
-
-@app.post("/api/v2/mv_studio/run_batch")
-async def api_v2_mv_studio_run_batch(request: Request) -> JSONResponse:
-    """Starts a parallel batch MV generation job (or single-sample MV job) in Tab #6."""
-    body = await request.json()
-    force_rerun = bool(body.get("force_rerun", False))
-    all_sids = [item["sample_id"] for item in load_manifest()]
-
-    if body.get("sample_ids"):
-        sample_ids = [str(s) for s in body["sample_ids"]]
-    elif not force_rerun:
-        existing_map = load_track_store("track6_mv_studio").get("samples", {})
-        pending = [
-            sid
-            for sid in all_sids
-            if not existing_map.get(sid) or existing_map[sid].get("status") == "error"
-        ]
-        sample_ids = pending if pending else all_sids
-    else:
-        sample_ids = all_sids
-
-    storyline_source = str(body.get("storyline_source", "prefer_argon"))
-    raw_td = body.get("target_duration_sec", 0)
-    target_duration_sec = int(raw_td) if raw_td not in (None, "", "full_song", "auto") else 0
-    raw_start = body.get("audio_start_sec")
-    audio_start_sec = float(raw_start) if raw_start not in (None, "", "auto") else None
-    mv_performance_mode = str(body.get("mv_performance_mode", "auto_detect"))
-    shot_continuity_mode = str(body.get("shot_continuity_mode", "multi_shot_mv"))
-    execution_mode = str(body.get("execution_mode", "full_auto"))
-    burn_subtitles = bool(body.get("burn_subtitles", True))
-    aspect_ratio = str(body.get("aspect_ratio", "16:9"))
-    max_workers = int(body.get("max_workers", 2) or 2)
-
-    job_id = start_parallel_mv_studio_batch_job(
-        sample_ids=sample_ids,
-        storyline_source=storyline_source,
-        target_duration_sec=target_duration_sec,
-        audio_start_sec=audio_start_sec,
-        mv_performance_mode=mv_performance_mode,
-        shot_continuity_mode=shot_continuity_mode,
-        execution_mode=execution_mode,
-        burn_subtitles=burn_subtitles,
-        aspect_ratio=aspect_ratio,
-        max_workers=max_workers,
-    )
-    return JSONResponse({"ok": True, "job_id": job_id, "sample_ids": sample_ids, "status": "running"})
-
-
-@app.post("/api/v2/mv_studio/create_custom_single")
-async def api_v2_mv_studio_create_custom_single(request: Request) -> JSONResponse:
-    """
-    Creates a custom single-song / single-image MV entry (`custom_XX`), saves uploaded audio + 1~2 reference images + prompt,
-    appends to `samples_manifest.json`, and immediately starts the V2.3 MV generation job for it!
-    """
-    body = await request.json()
-    title = str(body.get("title") or "").strip() or f"自定义单曲 MV ({datetime.datetime.now().strftime('%H:%M:%S')})"
-    language = str(body.get("language") or "Chinese/Multilingual").strip()
-    prompt_text = str(body.get("prompt_text") or "").strip()
-    img1_b64 = str(body.get("image1_b64") or "").strip()
-    img2_b64 = str(body.get("image2_b64") or "").strip()
-    audio_b64 = str(body.get("audio_b64") or "").strip()
-
-    if not img1_b64:
-        raise HTTPException(status_code=400, detail="请至少上传 1 张主角/封面参考图 (image1_b64)！")
-    if not audio_b64:
-        raise HTTPException(status_code=400, detail="请上传歌曲音频文件 (.mp3 / .wav / .m4a) 以便提取 24fps 精确时间戳与对嘴节奏！")
-
-    manifest = load_manifest()
-    custom_idx = len([m for m in manifest if str(m.get("sample_id", "")).startswith("custom_")]) + 1
-    sample_id = f"custom_{custom_idx:02d}"
-    while any(m.get("sample_id") == sample_id for m in manifest):
-        custom_idx += 1
-        sample_id = f"custom_{custom_idx:02d}"
-
-    sdir = SAMPLES_DIR / sample_id
-    sdir.mkdir(parents=True, exist_ok=True)
-
-    img1_bytes = base64.b64decode(img1_b64)
-    img1_path = sdir / "input_image_01.jpeg"
-    img1_path.write_bytes(img1_bytes)
-    (sdir / "cover.png").write_bytes(img1_bytes)
-
-    images_list = [
-        {
-            "filename": "input_image_01.jpeg",
-            "url": f"/api/media/{sample_id}/input_image_01.jpeg",
-            "width": 1024,
-            "height": 1024,
-            "size_kb": round(len(img1_bytes) / 1024, 1),
-        }
-    ]
-    files_dict = {
-        "cover.png": "",
-        "input_image_01.jpeg": "",
-    }
-
-    if img2_b64:
-        img2_bytes = base64.b64decode(img2_b64)
-        img2_path = sdir / "input_image_02.jpeg"
-        img2_path.write_bytes(img2_bytes)
-        images_list.append({
-            "filename": "input_image_02.jpeg",
-            "url": f"/api/media/{sample_id}/input_image_02.jpeg",
-            "width": 1024,
-            "height": 1024,
-            "size_kb": round(len(img2_bytes) / 1024, 1),
-        })
-        files_dict["input_image_02.jpeg"] = ""
-
-    aud_bytes = base64.b64decode(audio_b64)
-    aud_path = sdir / "input_audio_01.mp3"
-    aud_path.write_bytes(aud_bytes)
-    probed_d = _probe_media_duration(aud_path)
-    audio_dur = round(probed_d, 2) if probed_d > 1.0 else 30.0
-    files_dict["input_audio_01.mp3"] = ""
-
-    if prompt_text:
-        (sdir / "prompt.txt").write_text(prompt_text, encoding="utf-8")
-        files_dict["prompt.txt"] = ""
-
-    mins = int(audio_dur // 60)
-    secs = int(audio_dur % 60)
-    new_spec = {
-        "sample_id": sample_id,
-        "folder_id": "",
-        "title": f"{sample_id} — {title}",
-        "language": language,
-        "protagonist_mode": "dual" if len(images_list) > 1 else "single",
-        "has_prompt": bool(prompt_text),
-        "has_baseline_mv": False,
-        "stress_tags": ["自定义单曲MV生成", "V2.3 24fps音画对齐+Omni+字幕同步"],
-        "files": files_dict,
-        "audio_meta": {
-            "duration_sec": audio_dur,
-            "duration_str": f"{mins:02d}:{secs:02d}",
-            "sample_rate": 44100,
-            "channels": 2,
-            "bit_rate": 192000,
-        },
-        "audio_url": f"/api/media/{sample_id}/input_audio_01.mp3",
-        "cover_url": f"/api/media/{sample_id}/cover.png",
-        "final_mv_local": False,
-        "final_mv_url": "",
-        "final_mv_drive_id": "",
-        "prompt_text": prompt_text,
-        "images": images_list,
-    }
-    manifest.append(new_spec)
-    try:
-        MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    except OSError:
-        pass
-
-    raw_td = body.get("target_duration_sec", 0)
-    target_duration_sec = int(raw_td) if raw_td not in (None, "", "full_song", "auto") else 0
-    mv_performance_mode = str(body.get("mv_performance_mode", "auto_detect"))
-    shot_continuity_mode = str(body.get("shot_continuity_mode", "multi_shot_mv"))
-    execution_mode = str(body.get("execution_mode", "full_auto"))
-    burn_subtitles = bool(body.get("burn_subtitles", True))
-    aspect_ratio = str(body.get("aspect_ratio", "16:9"))
-
-    job_id = start_parallel_mv_studio_batch_job(
-        sample_ids=[sample_id],
-        storyline_source="prefer_argon",
-        target_duration_sec=target_duration_sec,
-        audio_start_sec=0.0,
-        mv_performance_mode=mv_performance_mode,
-        shot_continuity_mode=shot_continuity_mode,
-        execution_mode=execution_mode,
-        burn_subtitles=burn_subtitles,
-        aspect_ratio=aspect_ratio,
-        max_workers=1,
-    )
-    return JSONResponse({"ok": True, "sample_id": sample_id, "job_id": job_id, "status": "running"})
-
-
-@app.post("/api/v2/mv_studio/render_from_plan")
-async def api_v2_mv_studio_render_from_plan(request: Request) -> JSONResponse:
-    """
-    Takes a sample's existing (or user-edited) `compiled_omni_prompts` and/or `subtitle_cues`
-    from the MV Studio Drawer and re-runs video rendering + subtitle burn-in + FFmpeg merge!
-    """
-    body = await request.json()
-    sample_id = str(body.get("sample_id", "01")).strip()
-    custom_omni_prompts = body.get("compiled_omni_prompts")
-    execution_mode = str(body.get("execution_mode", "full_auto"))
-    burn_subtitles = bool(body.get("burn_subtitles", True))
-
-    existing = load_track_store("track6_mv_studio").get("samples", {}).get(sample_id, {})
-    if existing.get("is_full_song"):
-        target_duration_sec = 0
-    else:
-        raw_td = body.get("target_duration_sec")
-        target_duration_sec = int(raw_td) if raw_td not in (None, "") else int(existing.get("target_duration_sec") or 0)
-    mv_performance_mode = str(body.get("mv_performance_mode") or existing.get("mv_performance_mode") or "auto_detect")
-    shot_continuity_mode = str(body.get("shot_continuity_mode") or existing.get("shot_continuity_mode") or "multi_shot_mv")
-    aspect_ratio = str(body.get("aspect_ratio") or existing.get("aspect_ratio") or "16:9")
-
-    job_id = f"batch_mv_rerender_{sample_id}_{uuid.uuid4().hex[:5]}"
-    with _BATCH_LOCK:
-        _BATCH_JOBS[job_id] = {
-            "job_id": job_id,
-            "track_key": "track6_mv_studio",
-            "track_label": f"#6 单曲重绘与合并 Sample {sample_id}",
-            "model": "gemini-omni-1.1-flash-preview + ffmpeg",
-            "location": "global",
-            "thinking_level": "DEFAULT",
-            "status": "running",
-            "total_samples": 1,
-            "completed_samples": 0,
-            "succeeded_samples": 0,
-            "failed_samples": 0,
-            "progress_pct": 10,
-            "current_step": f"🎬 正在按微调后的分镜提示词重新渲染并合并 Sample {sample_id} MV...",
-            "per_sample": {sample_id: {"status": "running", "score": None, "error": "", "traceback": ""}},
-            "logs": [],
-        }
-
-    def _worker() -> None:
-        _set_thread_log_ctx(job_id=job_id, track_key="track6_mv_studio", sample_id=sample_id, stage="MV_RERENDER")
-        try:
-            rec = run_single_sample_mv_studio_pipeline(
-                sample_id=sample_id,
-                storyline_source=existing.get("storyline_source_used", "prefer_argon"),
-                target_duration_sec=target_duration_sec,
-                audio_start_sec=existing.get("song_start_sec", 0.0),
-                mv_performance_mode=mv_performance_mode,
-                shot_continuity_mode=shot_continuity_mode,
-                execution_mode=execution_mode,
-                burn_subtitles=burn_subtitles,
-                aspect_ratio=aspect_ratio,
-                custom_omni_prompts=custom_omni_prompts if isinstance(custom_omni_prompts, list) else None,
-            )
-            with _BATCH_LOCK:
-                _BATCH_JOBS[job_id]["per_sample"][sample_id] = {"status": "completed", "score": len(rec.get("subtitle_cues", [])), "error": "", "traceback": ""}
-                _BATCH_JOBS[job_id]["completed_samples"] = 1
-                _BATCH_JOBS[job_id]["succeeded_samples"] = 1
-                _BATCH_JOBS[job_id]["progress_pct"] = 100
-                _BATCH_JOBS[job_id]["status"] = "completed"
-                _BATCH_JOBS[job_id]["current_step"] = f"✅ Sample {sample_id} MV 重新渲染与字幕合并完成！"
-            persist_batch_job_state(job_id)
-        except Exception as exc:
-            tb_s = traceback.format_exc()
-            with _BATCH_LOCK:
-                _BATCH_JOBS[job_id]["per_sample"][sample_id] = {"status": "failed", "score": None, "error": str(exc), "traceback": tb_s}
-                _BATCH_JOBS[job_id]["completed_samples"] = 1
-                _BATCH_JOBS[job_id]["failed_samples"] = 1
-                _BATCH_JOBS[job_id]["progress_pct"] = 100
-                _BATCH_JOBS[job_id]["status"] = "error"
-                _BATCH_JOBS[job_id]["current_step"] = f"❌ Sample {sample_id} 渲染失败: {exc}"
-            persist_batch_job_state(job_id)
-            log_runtime("ERROR", "MV_RERENDER_FAIL", f"Sample {sample_id} 重新渲染失败: {exc}", sample_id=sample_id, job_id=job_id, exc=exc)
-
-    threading.Thread(target=_worker, daemon=True).start()
-    return JSONResponse({"ok": True, "job_id": job_id, "sample_id": sample_id, "status": "running"})
-
-
-@app.post("/api/v2/save_mv_director_prompt")
-async def api_v2_save_mv_director_prompt(request: Request) -> JSONResponse:
-    body = await request.json()
-    new_prompt = str(body.get("mv_storyboard_director_prompt") or "").strip()
-    if not new_prompt:
-        raise HTTPException(status_code=400, detail="mv_storyboard_director_prompt cannot be empty")
-    cfg = load_platform_config()
-    cfg["prompts"]["mv_storyboard_director_prompt"] = new_prompt
-    save_platform_config(cfg)
-    return JSONResponse({"ok": True, "status": "saved", "updated_at": cfg["updated_at"]})
-
-
-@app.get("/api/v2/mv_studio/media/{sample_id}/{filename}")
-async def api_serve_mv_studio_media(sample_id: str, filename: str, request: Request) -> Response:
-    """
-    Serves generated MV Studio files (`final_mv_subtitled.mp4`, `shot_01_10s.mp4`, `subtitles.srt`, etc.),
-    searching all local/FUSE candidate paths, hydrating from GCS if needed, and supporting HTTP `Range` (`206 Partial Content`)
-    for reliable HTML5 `<video>` playback in Chrome/Safari even on GCS FUSE mounts!
-    """
-    candidates = (
-        MV_STUDIO_OUTPUTS_DIR / sample_id / filename,
-        DATA_DIR / "runs" / "mv_studio_outputs" / sample_id / filename,
-        DATA_DIR / "argon_eval_data" / "runs" / "mv_studio_outputs" / sample_id / filename,
-        APP_DIR / "argon_eval_data" / "runs" / "mv_studio_outputs" / sample_id / filename,
-        Path("/tmp/mv_eval_data/runs/mv_studio_outputs") / sample_id / filename,
-    )
-    local_p = MV_STUDIO_OUTPUTS_DIR / sample_id / filename
-    for cand in candidates:
-        if cand.exists() and cand.stat().st_size > 0:
-            local_p = cand
-            break
-
-    if (not local_p.exists() or local_p.stat().st_size == 0) and _parse_gcs_bucket_and_prefix()[0]:
-        download_from_gcs_universal(f"runs_v2/mv_studio_outputs/{sample_id}/{filename}", local_p)
-
-    if local_p.exists() and local_p.stat().st_size > 0:
-        media_type = "application/octet-stream"
-        if filename.endswith(".mp4"):
-            media_type = "video/mp4"
-        elif filename.endswith(".vtt"):
-            media_type = "text/vtt; charset=utf-8"
-        elif filename.endswith(".srt"):
-            media_type = "text/plain; charset=utf-8"
-        elif filename.endswith(".mp3"):
-            media_type = "audio/mpeg"
-        elif filename.endswith((".jpg", ".jpeg")):
-            media_type = "image/jpeg"
-
-        file_size = local_p.stat().st_size
-        range_header = request.headers.get("range")
-        if range_header and filename.endswith((".mp4", ".mp3")):
-            m = re.match(r"bytes=(\d+)-(\d*)", range_header)
-            if m:
-                start_b = int(m.group(1))
-                end_b = int(m.group(2)) if m.group(2) else file_size - 1
-                end_b = min(end_b, file_size - 1)
-                if start_b <= end_b and start_b < file_size:
-                    chunk_len = end_b - start_b + 1
-                    with local_p.open("rb") as f:
-                        f.seek(start_b)
-                        data_slice = f.read(chunk_len)
-                    return Response(
-                        content=data_slice,
-                        status_code=206,
-                        media_type=media_type,
-                        headers={
-                            "Content-Range": f"bytes {start_b}-{end_b}/{file_size}",
-                            "Accept-Ranges": "bytes",
-                            "Content-Length": str(len(data_slice)),
-                            "Cache-Control": "no-cache",
-                        },
-                    )
-        return FileResponse(
-            local_p,
-            media_type=media_type,
-            headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
-        )
-    raise HTTPException(status_code=404, detail=f"MV Studio asset not found: {sample_id}/{filename}")
-
 
 
 @app.get("/", response_class=HTMLResponse)

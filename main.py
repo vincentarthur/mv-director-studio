@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Main entrypoint for MV Multimodal Evaluation, Storyline & Generation Studio (v2.3.0)."""
+"""Main entrypoint for MV Multimodal Evaluation & Storyline Studio (v2.2.0)."""
 from __future__ import annotations
 
 import argparse
@@ -13,7 +13,7 @@ __all__ = ["app", "main"]
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="MV Multimodal Evaluation, Storyline & Generation Studio v2.3.0"
+        description="MV Multimodal Evaluation & Storyline Studio v2.2.0"
     )
     parser.add_argument(
         "--host",
@@ -28,7 +28,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     print(
-        f"🚀 MV Multimodal Evaluation, Storyline & Generation Studio v2.3.0 listening on http://{args.host}:{args.port}",
+        f"🚀 MV Multimodal Evaluation & Storyline Studio v2.2.0 listening on http://{args.host}:{args.port}",
         flush=True,
     )
     uvicorn.run(app, host=args.host, port=args.port)

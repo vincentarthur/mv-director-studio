@@ -1,4 +1,4 @@
-# 📘 Gemini 3.8 Flash & 4 Argon — MV 评测、Storyline 创作与 MV 全链路生成平台 (V2.3) 完整架构与配置手册
+# 📘 Gemini 3.8 Flash & 4 Argon — MV 多模态评测与 Storyline 创作平台 (V2.2) 完整架构与配置手册
 
 > **⚡ 快速执行提示**：如果您希望直接查看按场景分类的 **3 步快速启动与部署命令**，请优先打开同目录下的：
 > 👉 **[`docs/QUICKSTART.md`](./QUICKSTART.md)**
@@ -8,7 +8,7 @@
 ## 📑 目录导航 (Table of Contents)
 
 1. **[一、快速选型建议与命令速查表 (Quick Cheat Sheet)](#一快速选型建议与命令速查表-quick-cheat-sheet)**
-2. **[二、平台架构与 8-Tab 核心功能说明（含 V2.3 新增 MV 全链路生成工坊）](#二平台架构与-8-tab-核心功能说明含-v23-新增-mv-全链路生成工坊)**
+2. **[二、平台架构与 7-Tab 核心功能说明](#二平台架构与-7-tab-核心功能说明)**
 3. **[三、部署前置条件 (Prerequisites)：需要什么权限？](#三部署前置条件-prerequisites需要什么权限)**
    - 3.1 当前执行部署的用户 (Deployer) 所需权限
    - 3.2 Cloud Run 运行时服务账号 (`argon-mv-eval-sa`) 所需权限
@@ -40,11 +40,11 @@
 
 ---
 
-## 二、平台架构与 8-Tab 核心功能说明（含 V2.3 新增 MV 全链路生成工坊）
+## 二、平台架构与 7-Tab 核心功能说明
 
-本平台用于系统性评测 **Gemini 3.8 Flash (`gemini-3.8-flash`)** 与 **Gemini 4 Argon (`gemini-4-argon`)** 在音乐 MV 场景下的 **多模态音频理解、分镜脚本策划、提示词自动优化、基于词曲情绪的 MV Storyline 故事线生成与对比打分，以及 V2.3 全新加入的 MV 全链路自动生成（分镜规划 → 毫秒级口型节奏控制 → 分镜渲染 → 双语字幕同步与 FFmpeg 合并）**。
+本平台用于系统性评测 **Gemini 3.8 Flash (`gemini-3.8-flash`)** 与 **Gemini 4 Argon (`gemini-4-argon`)** 在音乐 MV 场景下的 **多模态音频理解、分镜脚本策划、提示词自动优化，以及基于词曲情绪的 MV Storyline 故事线生成与对比打分**。
 
-### 2.1 八大功能模块 (8-Tab 工作台)
+### 2.1 七大功能模块 (7-Tab 工作台)
 
 | Tab 编号 | 模块名称 | 核心功能说明 |
 | :--- | :--- | :--- |
@@ -53,29 +53,10 @@
 | **Tab #3** | **Step 3: Argon 提示词优化器 & Why** | 调用 `gemini-4-argon` 剖析原提示词局限，自动重构适配 Gemini 多模态特性的优化版提示词与逐条 Why 解释；**支持手动直接修改保存提示词**。 |
 | **Tab #4** | **Step 4: 优化后Prompt 双模型评测** | 使用优化后的提示词，分别在通道 A (`gemini-3.8-flash`) 与通道 B (`gemini-4-argon`) 上并行评测 10 组样本，验证 Prompt 优化的真实增益。 |
 | **Tab #5** | **🎬 5. MV Storyline 创作与词曲对比评测 (V2.2)** | 综合**歌曲音频（歌词、旋律、结构、情绪）+ 人物参考图 (`input_image`) + 用户提示词 (`prompt.txt` 若存在)** 生成完整 MV 故事线（内置五大防坑铁律），并由裁判模型将生成的 Storyline 与原曲逐段对比，输出 **0–100 总分、S1–S6 六大对齐维度分，以及「哪里需要优化、当前问题、为什么、怎么改」**。 |
-| **Tab #6** | **🎥 6. MV 全链路自动生成工坊 (V2.3 新增)** | 基于 V2.2 生成的 MV Storyline，支持 **① 一键并行批量生成全部样本 MV** 与 **② 基于单首歌曲/自定义图片上传生成单个 MV**。默认支持 **全曲 100% 等长自动分镜 (`target_duration_sec=0`)**，内置 **三大 MV 演绎与对嘴模式（🎤独唱精准对嘴 `solo_vocal_lipsync` / 🎭合唱对唱分角对嘴 `duet_chorus_lipsync` / 🎬纯故事无需对嘴 `pure_story_cinematic` + 🧠智能声学判别 `auto_detect`）**、**24fps (`41.667ms`) DSP 人声包络 + 男女声部基频 $F_0$ + 词曲音节律动检测**、**Nano Banana 2.1 (`gemini-nano-banana-2.1`) 首帧生成**、**Omni 1.1 Flash (`gemini-omni-1.1-flash-preview`) `[MM:SS.mmm]` 分镜生成**、**毫秒级字幕同步 (`.srt`/`.vtt` + CJK 字幕烧录) 与 FFmpeg 多幕无损合并**。 |
-| **Tab #7** | **📊 7. 全景对比、导入导出与快照** | 汇总全部评测轨道的 01–10 得分对比矩阵，支持一键并行跑完全流程、JSON Bundle 导入/导出与历史快照回滚。 |
-| **Tab #8** | **⚙️ 8. 配置中心 (Models / Prompts / Storage)** | 独立配置 GCP Project ID、**多源素材存储模式 (`auto / gdrive / gcs / local`)**、**12 个模型角色的独立 `model` / `location` / `thinking_level` / `temperature` / `max_output_tokens` (默认 `65535`)**、**9 个核心 Prompt 在线编辑**，以及**浏览器直接上传样本素材**。 |
+| **Tab #6** | **📊 6. 全景对比、导入导出与快照** | 汇总全部评测轨道的 01–10 得分对比矩阵，支持一键并行跑完全流程、JSON Bundle 导入/导出与历史快照回滚。 |
+| **Tab #7** | **⚙️ 7. 配置中心 (Models / Prompts / Storage)** | 独立配置 GCP Project ID、**多源素材存储模式 (`auto / gdrive / gcs / local`)**、**9 个模型角色的独立 `model` / `location` / `thinking_level` / `temperature` / `max_output_tokens` (默认 `65535`)**、**8 个核心 Prompt 在线编辑**，以及**浏览器直接上传样本素材**。 |
 
-### 2.2 V2.3 MV 全链路生成工坊的 6 大精细化音画控制机制
-
-1. **全曲等长自动分镜 (`target_duration_sec = 0` 默认) & 多幕并行渲染**：
-   - 自动探测原曲精确时长（如 `183.4s ~ 291.7s`），按 `ceil(song_duration / 10.0)` 自动切分为 `N × 10.0s` 幕，将 V2.2 Storyline 的四幕结构 (`four_act_story_arc`) 与时间锚点 (`time_anchored_story_beats`) 按时间轴映射至每一幕，并在合并时精确裁剪对齐至原曲毫秒级时长。
-2. **三大 MV 演绎与对嘴模式 (`mv_performance_mode`) + 智能声学判别 (`auto_detect`)**：
-   - **🎤 独唱精准对嘴模式 (`solo_vocal_lipsync`)**：锁定唯一主唱（`LEAD <IMAGE_REF_0>`）在所有人声激活窗口张嘴逐字对嘴演唱，若有配角（`SUPPORT <IMAGE_REF_1>`）同框则强制锁定 `forbidden_silent_acting`（全程闭嘴演戏）。
-   - **🎭 合唱/对唱分角对嘴模式 (`duet_chorus_lipsync`)**：根据每个 `[MM:SS.mmm]` 窗口的男/女声基频 ($F_0$) 与双声部和声分布，将词曲逐句分配给 `LEAD`（角色A独唱）、`SUPPORT`（角色B独唱）或 `BOTH`（副歌男女同框合唱），未轮到演唱的角色严格闭嘴互动。
-   - **🎬 纯故事叙事模式·无需对嘴 (`pure_story_cinematic`)**：全片所有窗口强制锁定 `is_vocal_open_mouth = False`、`active_speaker = "NONE"`，并自动剥离 Omni `# Transcriptions` 语音块，人物全程自然闭嘴演绎电影级叙事动作，同时利用 24fps 音乐节拍时间戳驱动镜头快切与同步字幕烧录。
-3. **24fps (`41.667ms`) DSP 人声包络 + 男女声部基频 ($F_0$) + 词曲音节律动 (`Cadence`) 实测 (`_detect_dsp_vocal_envelope_windows_10s`)**：
-   - 对每个 10.0 秒音频分片执行 `220Hz–3600Hz` 人声共振峰带通滤波与 24fps (240 帧) RMS 能量包络计算，自动平滑 `<= 4 帧 (167ms)` 的辅音气口，并对超长乐句（`> 4.2s`）在换气谷值处按 4 帧 (`166.7ms`) 3D Video Latent 边界自动切分；
-   - 通过 `8kHz` 降采样自相关基频提取区分 **男声基频带 (`85–178Hz`)**、**女声基频带 (`190–380Hz`)** 与 **双声部和声 (`both`)**，并统计音节包络峰值率 (`syllable_rate_hz`) 映射为 4 类律动口型指令：`slow_sustained_legato`（抒情慢速长音）、`mid_melodic_pop`（中速流行咬字）、`fast_syncopated_staccato`（快切密集说唱/切分）、`instrumental_beat_pulse`（器乐闭嘴卡点）。
-4. **声画性别与演唱权限闭环锁 (`Mouth Isolation & Gender Lock`)**：
-   - 锁定主角 `<IMAGE_REF_0>[Character A]` 与配角 `<IMAGE_REF_1>[Character B]` 的声部性别与 `singing_permission`；在纯器乐窗口 (`INSTRUMENTAL_CLOSED`) 或非当前演唱角色上强制注入 `ALL MOUTHS TIGHTLY CLOSED, ZERO SPEAKING, LIPS SEALED SHUT`。
-5. **Omni 1.1 Flash 原生四段式 Prompt 编译器 (`compile_mv_storyline_omni_prompt_for_act`)**：
-   - 严格编译 `# References`、`# Sources`、`# Descriptions`（含 `[MM:SS.mmm]<Video Caption>...<Audio Caption>...`、声部基频 `F0`、音节律动 `rhythm_cadence` 与 `A_ROLL_VOCAL` / `B_ROLL_EMOTION_INSERT` / `C_ROLL_WIDE_CLIMAX` 幕内跳切）与 `# Transcriptions`（内置防语音分类器误拦截自动重试与 24fps 动态运镜分镜保底）。
-6. **毫秒级双语字幕同步 (`.srt` / `.vtt` + Pillow RGBA CJK 分批烧录) 与 FFmpeg 全曲无损合并**：
-   - 自动导出标准 `.srt` / `.vtt` 字幕文件，并使用内置中文字体通过 Pillow RGBA 渲染 + FFmpeg 多批次滤镜链（每批最多 12 条 overlay，支持全曲 50–100+ 条字幕零溢出）将字幕精准烧录至合并后的完整 MV (`final_mv_subtitled.mp4` 与无字幕纯净版 `final_mv_clean.mp4`)。
-
-### 2.3 标准工程目录结构
+### 2.2 标准工程目录结构
 
 ```text
 mv-eval-studio/
@@ -89,10 +70,9 @@ mv-eval-studio/
 │   ├── config.py                  # 全局配置、模型注册表、Prompt 模板与实时结构化日志
 │   ├── storage.py                 # 多源素材解析器 (Local / GCS FUSE / GCS API / Google Drive)
 │   ├── evaluation_engine.py       # 音频多模态理解、Prompt 优化器与 Storyline 评测引擎 (Tabs #1-#5)
-│   ├── mv_generation_engine.py    # MV 全链路生成工坊：分镜规划、24fps 口型/性别/节奏检测、Omni 1.1 Flash、字幕同步与 FFmpeg 合并 (Tab #6)
 │   └── server.py                  # FastAPI 路由与零明文 SHA-256 会话鉴权中间件
 ├── static/
-│   └── index.html                 # 8-Tab 前端单页工作台 (SPA UI)
+│   └── index.html                 # 7-Tab 前端单页工作台 (SPA UI)
 ├── configs/
 │   └── samples_manifest.json      # 01-10 基准测试集元数据清单
 └── docs/

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Configuration, directory layout, structured runtime logger, and prompt/model registry for MV Eval & Generation Studio."""
+"""Configuration, directory layout, structured runtime logger, and prompt/model registry for MV Multimodal Evaluation & Storyline Studio."""
 from __future__ import annotations
 
 import copy
@@ -67,17 +67,14 @@ for _d in (SAMPLES_DIR, RUNS_V2_DIR, SNAPSHOTS_DIR):
     except OSError:
         pass
 
-APP_VERSION = "2.3.1"
+APP_VERSION = "2.2.0"
 MODEL_FLASH_38 = "gemini-3.8-flash"
 MODEL_ARGON_4 = "gemini-4-argon"
-OMNI_VIDEO_FPS = 24.0
-MV_STUDIO_OUTPUTS_DIR = RUNS_V2_DIR / "mv_studio_outputs"
 JOBS_DIR = RUNS_V2_DIR / "jobs"
-for _md in (MV_STUDIO_OUTPUTS_DIR, JOBS_DIR):
-    try:
-        _md.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        pass
+try:
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    pass
 
 _BATCH_JOBS: dict[str, dict[str, Any]] = {}
 _BATCH_LOCK = threading.Lock()
@@ -719,131 +716,6 @@ DEFAULT_STORYLINE_JUDGE_PROMPT_TEMPLATE = """你是一位严苛、资深的多�
 
 
 # ==============================================================================
-# V2.3 NEW: MV Storyline -> Fine-Grained Storyboard, 24fps Acoustic Pitch/Rhythm
-#           Timestamp Analyzer, Solo / Duet-Chorus / Pure-Story Omni 1.1 Flash
-#           Alignment, Subtitle Sync & FFmpeg Merge Studio
-# ==============================================================================
-import io
-import math
-import shutil
-import struct
-import wave
-
-MV_STUDIO_OUTPUTS_DIR = RUNS_V2_DIR / "mv_studio_outputs"
-try:
-    MV_STUDIO_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-except OSError:
-    pass
-
-# Omni 1.1 Flash C++ Frame Grid Constants (from `omni_format_utils.cc` & `or_constants.gcl`)
-OMNI_VIDEO_FPS: float = 24.0   # 41.667ms per pixel frame
-OMNI_LATENT_FPS: float = 6.0   # 166.667ms per 3D video latent token (4 pixel frames)
-
-MV_PERFORMANCE_MODES: dict[str, str] = {
-    "auto_detect": "🧠 智能声学判别模式 (Auto-Detect: 自动识别独唱/对唱合唱/纯剧情)",
-    "solo_vocal_lipsync": "🎤 独唱精准对嘴模式 (Solo Vocal Lip-Sync: 单主唱逐字对嘴 + 配角闭嘴飙戏)",
-    "duet_chorus_lipsync": "🎭 合唱/对唱分角对嘴模式 (Duet & Chorus Lip-Sync: 男女/双角分句轮唱 + 副歌同框合唱)",
-    "pure_story_cinematic": "🎬 纯故事叙事模式·无需对嘴 (Pure Story Narrative: 全程不对嘴纯演戏 + 节拍卡点运镜)",
-}
-
-DEFAULT_MV_STORYBOARD_DIRECTOR_PROMPT = """你是一位精通「Gemini Omni 1.1 Flash 24fps (41.667ms) 毫秒级音画同步」与「多角色/性别声学基频节奏分析」的顶级 AI MV 总导演（V2.3.1 逐句听音毫秒对齐版）。
-你的任务是：**仔细聆听随本次请求一并输入的每幕 10.0s 真实音频切片 (`audio_seg_XX_10s.mp3`)，结合 V2.2 生成的《MV Storyline 故事线方案》、24fps DSP 实测的人声谐波基频 F0 / 男女声部归属 / 音节速率时间窗以及主角参考图**，将 MV 故事线自动转化为**可直接驱动 Nano Banana 2.1 首帧生成、Omni 1.1 Flash 分镜视频渲染、以及毫秒级同步字幕烧录的《精细化多幕分镜与短句级口型时间轴规划表》**。
-
-### 核心控制铁律（V2.3.1 Omni 24fps 短句级毫秒时间戳与三大演绎模式规范）：
-1. **三大 MV 演绎与口型模式 (`mv_performance_mode`) 严格执行**：
-   - **`solo_vocal_lipsync`（🎤 独唱精准对嘴模式）**：
-     * 自动锁定唯一主唱 (`LEAD`, `<IMAGE_REF_0>[Character A]`) 的性别与音色，所有有人声演唱的窗口 (`is_vocal_open_mouth = true`) 均由 `LEAD` 严格按词曲音节速率 (`rhythm_cadence`) 张嘴对口型；
-     * 若画面中存在第二角色 (`SUPPORT`, `<IMAGE_REF_1>[Character B]`)，配角必须全程 `singing_permission = "forbidden_silent_acting"`，在所有窗口保持闭嘴演戏/流泪/互动 (`KEEPS MOUTH TIGHTLY CLOSED with zero vocal movement`)。
-   - **`duet_chorus_lipsync`（🎭 合唱/对唱分角对嘴模式）**：
-     * 结合 24fps DSP 实测基频 (`est_f0_hz`: 男声低频区 `85-175Hz` vs 女声高频区 `185-380Hz` vs 双声部叠加 `both`) 与原曲 10.0s 音频真实听感，精准切分每个微节拍窗口的演唱归属 (`active_speaker`)：
-       - `LEAD` 独唱句：仅主角 A 按词曲节奏张嘴演唱，配角 B 严格闭嘴倾听/互动；
-       - `SUPPORT` 独唱句：仅配角 B 按词曲节奏张嘴演唱，主角 A 严格闭嘴倾听/互动；
-       - `BOTH` 合唱句（副歌高潮合音）：主角 A 与配角 B 同框同步张嘴合唱！
-   - **`pure_story_cinematic`（🎬 纯故事叙事模式·无需对嘴）**：
-     * 全片所有微节拍窗口统一设 `is_vocal_open_mouth = false`、`active_speaker = "NONE"`，所有角色全程保持自然闭嘴状态演绎剧情动作与微表情（严禁张嘴唱歌），但镜头切换、人物动作爆发点与光影转折必须 100% 踩准 24fps 音频时间窗节拍，且有人声处依然输出同步歌词字幕 `subtitle_text`！
-2. **V2.3.1 短句级（Sub-Phrase `1.2s ~ 2.8s`）24fps 帧网格对齐 (`[MM:SS.mmm]`) 与呼吸闭口隔离锁**：
-   - 每一幕 (`Act`) 固定为精确的 `10.000` 秒（幕内相对时间 `0.000s` 至 `10.000s`）。
-   - **严禁把整段 5~9 秒的歌词笼统塞进单个超长 `micro_beat`！** 必须结合真实 10.0s 音频切片与 `dsp_windows_per_act`，将每 10 秒幕细分为 **`4 ~ 7` 个连续不重叠的短句级微节拍窗口 (`micro_beats`)**：
-     * 每个有人声演唱的 `micro_beat` 时长严格控制在 **`1.2s ~ 2.8s`（对应半句或单句歌词，约 3~7 个词）**，确保 `sung_lyrics` 的字数与该时间窗长度、歌手实际语速/拖腔 100% 匹配；
-     * **精准保留句首前奏、句间换气（Breathing Pause `0.2s ~ 0.8s`）与句尾收音闭口窗口**：若歌手在 `01.250s` 才开口，则 `0.000s ~ 1.250s` 必须单独设为 `is_vocal_open_mouth = false, active_speaker = "NONE"` 的闭嘴前奏窗口；两句歌词之间若存在换气停顿或伴奏空隙，必须插入 `is_vocal_open_mouth = false` 的闭嘴窗口，让歌手在句尾准时闭嘴！
-   - 每个窗口必须标注词曲咬字/律动速率 `rhythm_cadence`：`"slow_sustained_legato"`（抒情慢速延音）、`"mid_melodic_pop"`（中速旋律逐字咬字）、`"fast_syncopated_staccato"`（快速密集切分/说唱咬字）或 `"instrumental_beat_pulse"`（纯器乐/换气停顿节拍）。
-   - **纯器乐/换气闭口窗口**：`is_vocal_open_mouth = false`, `active_speaker = "NONE"`，角色动作描述必须声明 `MOUTH TIGHTLY CLOSED, ZERO SPEAKING, LIPS SEALED SHUT`。
-3. **幕内景别快切语法 (`Intra-Act A/B/C-Roll Montage Grammar`)**：
-   - 在每 10 秒幕内交替运用 `"A_ROLL_VOCAL"`（特写/近景聚焦主唱或主角面部口型与眼神）、`"B_ROLL_EMOTION_INSERT"`（特写手部动作/器乐/流泪眼神/核心视觉符号 `core_visual_motif` 空镜）、`"C_ROLL_WIDE_CLIMAX"`（全景/环绕/推轨展现环境光影与双人戏剧张力）。
-4. **同步字幕轨生成 (`subtitle_text`)**：
-   - 凡原曲该时间窗内有人声演唱（即使在 `pure_story_cinematic` 模式下角色不对嘴），均须提供与该 `1.2s ~ 2.8s` 短句完全对应的同步歌词字幕 `subtitle_text`；纯器乐/换气窗口设 `subtitle_text = ""`。
-
-请严格输出以下 JSON 结构（不要输出任何 Markdown 代码块标记或多余解释）：
-{
-  "mv_title": "MV 标题",
-  "mv_performance_mode_resolved": "solo_vocal_lipsync | duet_chorus_lipsync | pure_story_cinematic",
-  "storyline_logline": "一句话核心故事线（继承自 V2.2 Storyline）",
-  "core_visual_motif": "贯穿全片的核心视觉符号（继承自 V2.2 Storyline）",
-  "lead_character": {
-    "role_tag": "<IMAGE_REF_0>[Character A]",
-    "name_cn": "主角名称/定位",
-    "gender": "male | female",
-    "matched_vocal_timbre_en": "匹配的英文人声音色与基频特征描述",
-    "visual_appearance_en": "基于参考图1的精确英文外观特征锁（脸型、发型、服装、配饰）",
-    "singing_permission": "allowed | forbidden_silent_acting",
-    "negative_constraints_en": "英文负向约束（如：Must NOT dance / Must keep mouth closed）"
-  },
-  "supporting_character": {
-    "role_tag": "<IMAGE_REF_1>[Character B]",
-    "name_cn": "配角/第二主唱名称（单人MV可写环境伴演或留空）",
-    "gender": "female | male",
-    "matched_vocal_timbre_en": "匹配的英文人声音色与基频特征描述",
-    "visual_appearance_en": "基于参考图2或衍生设定的精确英文外观特征锁",
-    "singing_permission": "allowed | forbidden_silent_acting",
-    "negative_constraints_en": "英文负向约束"
-  },
-  "acts": [
-    {
-      "act_index": 1,
-      "act_title_cn": "第一幕标题（如：Act 01 — 开场钩子与情绪铺垫）",
-      "storyline_beat_ref": "对应 V2.2 Storyline 的段落（如 Intro / Verse 1）",
-      "global_start_sec": 0.0,
-      "global_end_sec": 10.0,
-      "scene_environment_en": "高细节英文场景与光影氛围描述（包含 core_visual_motif）",
-      "first_frame_prompt_en": "用于 Nano Banana 2.1 生成本幕起始首帧 (<FIRST_FRAME>) 的英文生图提示词（闭嘴状态，严格锁定人物参考图面部与服装）",
-      "micro_beats": [
-        {
-          "start_sec": 0.0,
-          "end_sec": 1.5,
-          "is_vocal_open_mouth": false,
-          "active_speaker": "NONE",
-          "speaker_voice_gender": "none",
-          "rhythm_cadence": "instrumental_beat_pulse",
-          "roll_type": "C_ROLL_WIDE_CLIMAX",
-          "camera_and_shot_cn": "电影感全景缓慢推轨 (35mm Anamorphic Wide Push-in)",
-          "sung_lyrics": "[Instrumental Intro — All Mouths Closed]",
-          "subtitle_text": "",
-          "lead_action_and_mouth_en": "Lead Character A stands in moody lighting, MOUTH TIGHTLY CLOSED, ZERO SPEAKING, LIPS SEALED SHUT, eyes looking into the distance.",
-          "support_action_and_mouth_en": "Supporting Character B keeps mouth firmly closed with zero vocal movement.",
-          "lighting_and_color_en": "Cinematic chiaroscuro rim lighting, warm amber and deep teal contrast"
-        },
-        {
-          "start_sec": 1.5,
-          "end_sec": 3.75,
-          "is_vocal_open_mouth": true,
-          "active_speaker": "LEAD",
-          "speaker_voice_gender": "male",
-          "rhythm_cadence": "mid_melodic_pop",
-          "roll_type": "A_ROLL_VOCAL",
-          "camera_and_shot_cn": "主唱近景面部特写 (50mm Medium Close-Up on Lead Singer)",
-          "sung_lyrics": "First short lyric phrase sung here",
-          "subtitle_text": "First short lyric phrase sung here",
-          "lead_action_and_mouth_en": "Lead Character A opens mouth on the exact vocal onset at 01.500s, singing the 2.25s phrase with natural syllable-locked articulation.",
-          "support_action_and_mouth_en": "Supporting Character B keeps mouth tightly closed with emotional eye contact.",
-          "lighting_and_color_en": "Warm key light highlighting facial expression and lip-sync"
-        }
-      ]
-    }
-  ]
-}""".strip()
-
-
-# ==============================================================================
 # 2. Unified Project, Per-Tab Model & All-Prompt Configuration Store
 # ==============================================================================
 DEFAULT_PLATFORM_CONFIG: dict[str, Any] = {
@@ -933,33 +805,6 @@ DEFAULT_PLATFORM_CONFIG: dict[str, Any] = {
             "max_output_tokens": 65535,
             "max_workers": 5,
         },
-        "tab6_mv_director": {
-            "label": "Tab #6: MV 分镜规划 + 24fps 角色/性别词曲节奏与 Omni 口型对齐导演模型 (默认 Gemini 4 Argon)",
-            "model": "gemini-4-argon",
-            "location": "global",
-            "thinking_level": "MEDIUM",
-            "temperature": 0.25,
-            "max_output_tokens": 65535,
-            "max_workers": 2,
-        },
-        "tab6_first_frame_imagen": {
-            "label": "Tab #6: 分镜首帧图 & 角色设定图模型 (默认 gemini-nano-banana-2.1)",
-            "model": "gemini-nano-banana-2.1",
-            "location": "global",
-            "thinking_level": "",
-            "temperature": 0.4,
-            "max_output_tokens": 4096,
-            "max_workers": 2,
-        },
-        "tab6_omni_video": {
-            "label": "Tab #6: 10秒音画口型同步分镜生成模型 (默认 gemini-omni-1.1-flash-preview)",
-            "model": "gemini-omni-1.1-flash-preview",
-            "location": "global",
-            "thinking_level": "",
-            "temperature": 0.4,
-            "max_output_tokens": 4096,
-            "max_workers": 2,
-        },
         "storyline_judge": {
             "label": "全局评分裁判 2: Storyline vs 歌曲对比打分与优化诊断模型 (默认 Gemini 3.8 Flash)",
             "model": "gemini-3.8-flash",
@@ -977,7 +822,6 @@ DEFAULT_PLATFORM_CONFIG: dict[str, Any] = {
         "rubric_judge_prompt_template": DEFAULT_RUBRIC_JUDGE_PROMPT_TEMPLATE,
         "storyline_generation_prompt": DEFAULT_STORYLINE_GENERATION_PROMPT,
         "storyline_judge_prompt_template": DEFAULT_STORYLINE_JUDGE_PROMPT_TEMPLATE,
-        "mv_storyboard_director_prompt": DEFAULT_MV_STORYBOARD_DIRECTOR_PROMPT,
         "mv_dataset_spec": DEFAULT_MV_DATASET_SPEC_TXT,
         "mv_rubric_md": DEFAULT_MV_RUBRIC_MD,
     },
@@ -998,26 +842,15 @@ def load_platform_config() -> dict[str, Any]:
                 for k, v in saved["tab_models"].items():
                     if k in cfg["tab_models"] and isinstance(v, dict):
                         cfg["tab_models"][k].update(v)
-                    elif isinstance(v, dict):
-                        cfg["tab_models"][k] = v
             if isinstance(saved.get("prompts"), dict):
                 for pk, pv in saved["prompts"].items():
-                    if isinstance(pv, str) and pv.strip():
+                    if pk in cfg["prompts"] and isinstance(pv, str) and pv.strip():
                         cfg["prompts"][pk] = pv
-                if "V2.3.1" not in str(cfg["prompts"].get("mv_storyboard_director_prompt") or ""):
-                    cfg["prompts"]["mv_storyboard_director_prompt"] = DEFAULT_MV_STORYBOARD_DIRECTOR_PROMPT
-            # Auto-upgrade max_output_tokens to 65535 for Gemini 4 Argon / 3.8 Flash tabs and normalize legacy model IDs
+            # Auto-upgrade max_output_tokens to 65535 for Gemini 4 Argon / 3.8 Flash tabs
             for _tk, _tv in cfg.get("tab_models", {}).items():
                 if isinstance(_tv, dict):
                     if int(_tv.get("max_output_tokens", 0) or 0) in (8192, 16384, 32768):
                         _tv["max_output_tokens"] = 65535
-                    _m_raw = str(_tv.get("model") or "").strip()
-                    if _m_raw.startswith("omni-"):
-                        _tv["model"] = f"gemini-{_m_raw}"
-                    elif _m_raw.startswith("nano-banana"):
-                        _tv["model"] = f"gemini-{_m_raw}"
-                    if _tk == "tab6_omni_video" and "omni-1.1-flash-preview" in str(_tv.get("label") or "") and "gemini-omni-1.1-flash-preview" not in str(_tv.get("label") or ""):
-                        _tv["label"] = "Tab #6: 10秒音画口型同步分镜生成模型 (默认 gemini-omni-1.1-flash-preview)"
             if saved.get("updated_at"):
                 cfg["updated_at"] = saved["updated_at"]
         except Exception:

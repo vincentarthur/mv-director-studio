@@ -723,7 +723,6 @@ TRACK_FILES = {
     "track4_argon4_opt": RUNS_V2_DIR / "track4_argon4_opt.json",
     "track5_storyline_flash38": RUNS_V2_DIR / "track5_storyline_flash38.json",
     "track5_storyline_argon4": RUNS_V2_DIR / "track5_storyline_argon4.json",
-    "track6_mv_studio": RUNS_V2_DIR / "track6_mv_studio.json",
 }
 _STORE_LOCK = threading.Lock()
 
@@ -762,52 +761,6 @@ def load_track_store(track_key: str) -> dict[str, Any]:
         data = {"track_key": track_key, "updated_at": "", "samples": {}}
     if "samples" not in data or not isinstance(data["samples"], dict):
         data["samples"] = {}
-
-    # For `track6_mv_studio`, auto-discover any `runs/mv_studio_outputs/<sample_id>/mv_studio_plan.json` or `.mp4` files on disk/FUSE!
-    if track_key == "track6_mv_studio":
-        mv_out_root = RUNS_V2_DIR / "mv_studio_outputs"
-        if mv_out_root.exists():
-            try:
-                for s_dir in sorted(mv_out_root.iterdir()):
-                    if not s_dir.is_dir():
-                        continue
-                    sid = s_dir.name
-                    plan_p = s_dir / "mv_studio_plan.json"
-                    sub_mp4 = s_dir / "final_mv_subtitled.mp4"
-                    clean_mp4 = s_dir / "final_mv_clean.mp4"
-                    existing_rec = data["samples"].get(sid)
-                    if plan_p.exists() and plan_p.stat().st_size > 64:
-                        try:
-                            plan_rec = json.loads(plan_p.read_text(encoding="utf-8"))
-                            if isinstance(plan_rec, dict):
-                                # If final MP4 exists on disk, ensure `final_video_url` and `status='completed'` are populated
-                                if (sub_mp4.exists() and sub_mp4.stat().st_size > 1024) or (clean_mp4.exists() and clean_mp4.stat().st_size > 1024):
-                                    plan_rec["status"] = "completed"
-                                    plan_rec["final_video_url"] = f"/api/v2/mv_studio/media/{sid}/{'final_mv_subtitled.mp4' if sub_mp4.exists() else 'final_mv_clean.mp4'}"
-                                    if clean_mp4.exists():
-                                        plan_rec["final_clean_video_url"] = f"/api/v2/mv_studio/media/{sid}/final_mv_clean.mp4"
-                                if not existing_rec or existing_rec.get("status") != "completed" or plan_rec.get("status") == "completed":
-                                    data["samples"][sid] = plan_rec
-                        except Exception:
-                            pass
-                    elif not existing_rec and ((sub_mp4.exists() and sub_mp4.stat().st_size > 1024) or (clean_mp4.exists() and clean_mp4.stat().st_size > 1024)):
-                        shot_ffs = sorted(s_dir.glob("shot_*_first_frame.jpg"))
-                        shot_vids = sorted(s_dir.glob("shot_*_10s.mp4"))
-                        data["samples"][sid] = {
-                            "sample_id": sid,
-                            "track_key": "track6_mv_studio",
-                            "status": "completed",
-                            "num_acts": max(len(shot_ffs), len(shot_vids), 1),
-                            "shot_first_frame_urls": [f"/api/v2/mv_studio/media/{sid}/{p.name}" for p in shot_ffs],
-                            "shot_video_urls": [f"/api/v2/mv_studio/media/{sid}/{p.name}" for p in shot_vids],
-                            "final_video_url": f"/api/v2/mv_studio/media/{sid}/{'final_mv_subtitled.mp4' if sub_mp4.exists() else 'final_mv_clean.mp4'}",
-                            "final_clean_video_url": f"/api/v2/mv_studio/media/{sid}/final_mv_clean.mp4" if clean_mp4.exists() else "",
-                            "srt_url": f"/api/v2/mv_studio/media/{sid}/subtitles.srt" if (s_dir / "subtitles.srt").exists() else "",
-                            "vtt_url": f"/api/v2/mv_studio/media/{sid}/subtitles.vtt" if (s_dir / "subtitles.vtt").exists() else "",
-                            "evaluated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        }
-            except Exception:
-                pass
 
     return data
 
@@ -852,7 +805,6 @@ def load_all_persisted_state() -> dict[str, Any]:
             "track4_argon4_opt": load_track_store("track4_argon4_opt"),
             "track5_storyline_flash38": load_track_store("track5_storyline_flash38"),
             "track5_storyline_argon4": load_track_store("track5_storyline_argon4"),
-            "track6_mv_studio": load_track_store("track6_mv_studio"),
         },
         "snapshots": snapshots,
     }
