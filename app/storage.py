@@ -271,7 +271,7 @@ def call_gemini_model(
                     err_msg = (
                         f"未找到样本媒体文件: {p_cand} (DATA_DIR={DATA_DIR}, SAMPLES_DIR={SAMPLES_DIR}, "
                         f"GCS_BUCKET={bucket_name or '<未配置>'}, GCS_PREFIX={prefix or '<空>'})。"
-                        f"\n请检查：(1) 若使用 GCS，请确认传入了环境变量 ARGON_GCS_BUCKET (或 GCS_BUCKET) 且对象位于 gs://<bucket>/samples/01..10/ 或 gs://<bucket>/argon_eval_data/samples/01..10/；"
+                        f"\n请检查：(1) 若使用 GCS，请确认传入了环境变量 GCS_BUCKET (或 GCS_BUCKET) 且对象位于 gs://<bucket>/samples/01..10/ 或 gs://<bucket>/argon_eval_data/samples/01..10/；"
                         f"(2) 若使用本地目录，请确认包含 argon_eval_data/samples/01..10；"
                         f"(3) 或在 Tab #7 配置中心直接从浏览器上传素材！{trace_detail}"
                     )
@@ -416,8 +416,8 @@ def _parse_gcs_bucket_and_prefix() -> tuple[str, str]:
     """Returns (bucket_name, prefix_without_leading_or_trailing_slash) from config or env."""
     cfg = load_platform_config()
     proj = cfg.get("project", {})
-    raw_bucket = (proj.get("gcs_bucket") or os.environ.get("ARGON_GCS_BUCKET") or "").strip()
-    raw_prefix = (proj.get("gcs_prefix") or os.environ.get("ARGON_GCS_PREFIX") or "argon_eval_data").strip()
+    raw_bucket = (proj.get("gcs_bucket") or os.environ.get("GCS_BUCKET") or "").strip()
+    raw_prefix = (proj.get("gcs_prefix") or os.environ.get("GCS_PREFIX") or "argon_eval_data").strip()
     if raw_bucket.startswith("gs://"):
         without_scheme = raw_bucket[5:].strip("/")
         parts = without_scheme.split("/", 1)
@@ -492,7 +492,7 @@ def download_from_gcs_universal(
     if not bucket_name:
         if trace_notes is not None:
             trace_notes.append(
-                "GCS跳过: 未配置 GCS Bucket (环境变量 ARGON_GCS_BUCKET 与 platform_config.project.gcs_bucket 均为空)"
+                "GCS跳过: 未配置 GCS Bucket (环境变量 GCS_BUCKET 与 platform_config.project.gcs_bucket 均为空)"
             )
         return False
     clean_rel = rel_object_path.lstrip("/")
@@ -746,7 +746,7 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
         target.parent.mkdir(parents=True, exist_ok=True)
 
     cfg_proj = load_platform_config().get("project", {})
-    mode = (cfg_proj.get("asset_storage_mode") or os.environ.get("ARGON_ASSET_STORAGE_MODE") or "auto").lower()
+    mode = (cfg_proj.get("asset_storage_mode") or os.environ.get("ASSET_STORAGE_MODE") or "auto").lower()
     bucket_name, prefix = _parse_gcs_bucket_and_prefix()
     trace_notes.append(
         f"远程回退配置: storage_mode={mode} | gcs_bucket={bucket_name or '<未设置>'} | gcs_prefix={prefix or '<空>'} | drive_file_id={file_id or '<无>'}"

@@ -50,27 +50,27 @@
 | IAM Role ID | 角色名称 | 在 `deploy.sh` 中的具体用途 |
 | :--- | :--- | :--- |
 | `roles/run.admin` | Cloud Run Admin | 创建/更新 Cloud Run 服务、配置 `4 vCPU / 8Gi` 规格、挂载 GCS FUSE 卷，以及设置 `--allow-unauthenticated` 或 IAM 策略 |
-| `roles/iam.serviceAccountUser` | Service Account User | 将运行时服务账号 (`argon-mv-eval-sa`) 及 Cloud Build 默认构建服务账号绑定 (`actAs`) 到 Cloud Run 服务上 |
+| `roles/iam.serviceAccountUser` | Service Account User | 将运行时服务账号 (`mv-director-studio-sa`) 及 Cloud Build 默认构建服务账号绑定 (`actAs`) 到 Cloud Run 服务上 |
 | `roles/cloudbuild.builds.editor` | Cloud Build Editor | `--source .` 源码部署会触发 Cloud Build 根据 `Dockerfile` 在云端构建容器镜像 |
 | `roles/artifactregistry.admin` | Artifact Registry Administrator | 首次 `--source .` 部署时自动创建 `cloud-run-source-deploy` 镜像仓库并推送容器镜像（若仓库已存在，仅需 `roles/artifactregistry.writer`） |
 | `roles/storage.admin` | Storage Admin | 将本地源码打包上传至 `gs://<PROJECT_ID>_cloudbuild` 构建暂存桶，并在指定 `GCS_BUCKET` 时为运行时服务账号授予 Bucket 权限 |
 
 #### B. 首次环境初始化权限（默认 `SKIP_IAM_SETUP="false"` 时必选，共 3 个角色）
-首次执行 `./deploy.sh` 时，脚本会自动启用 GCP API、创建专用运行时服务账号 `argon-mv-eval-sa` 并为其绑定权限：
+首次执行 `./deploy.sh` 时，脚本会自动启用 GCP API、创建专用运行时服务账号 `mv-director-studio-sa` 并为其绑定权限：
 | IAM Role ID | 角色名称 | 在 `deploy.sh` 中的具体用途 |
 | :--- | :--- | :--- |
 | `roles/serviceusage.serviceUsageAdmin` | Service Usage Admin | 执行 `gcloud services enable` 启用 `aiplatform`、`run`、`cloudbuild`、`artifactregistry`、`drive`、`storage` API |
-| `roles/iam.serviceAccountAdmin` | Service Account Admin | 创建运行时服务账号 `argon-mv-eval-sa` |
+| `roles/iam.serviceAccountAdmin` | Service Account Admin | 创建运行时服务账号 `mv-director-studio-sa` |
 | `roles/resourcemanager.projectIamAdmin` | Project IAM Admin | 执行 `gcloud projects add-iam-policy-binding` 为运行时服务账号授予 Vertex AI / Logging / Storage 角色 |
 
-*注：若项目管理员已预先创建好 `argon-mv-eval-sa` 并完成授权，部署者只需执行 `SKIP_IAM_SETUP="true" ./deploy.sh`，即可省去上述 **B 组**的 3 个管理权限。*
+*注：若项目管理员已预先创建好 `mv-director-studio-sa` 并完成授权，部署者只需执行 `SKIP_IAM_SETUP="true" ./deploy.sh`，即可省去上述 **B 组**的 3 个管理权限。*
 
 #### C. 可选权限（仅当启用 `ENABLE_IAP="true"` 原生 Google IAP 模式时需要）
 - `roles/iap.admin` (*IAP-secured Web App Admin*)：配置 Cloud Run 原生 IAP 访问白名单。
 
-### 2. Cloud Run 容器运行时服务账号权限（`argon-mv-eval-sa`）
+### 2. Cloud Run 容器运行时服务账号权限（`mv-director-studio-sa`）
 
-[`deploy.sh`](./deploy.sh) 会自动创建 `argon-mv-eval-sa@${PROJECT_ID}.iam.gserviceaccount.com` 作为容器运行时的身份，并自动绑定以下 **4 个角色**：
+[`deploy.sh`](./deploy.sh) 会自动创建 `mv-director-studio-sa@${PROJECT_ID}.iam.gserviceaccount.com` 作为容器运行时的身份，并自动绑定以下 **4 个角色**：
 1. **`roles/aiplatform.user`** (*Vertex AI User*)：调用 `gemini-4-argon`、`gemini-3.8-flash`、`gemini-nano-banana-2.1` 及 `gemini-omni-1.1-flash-preview` (`interactions` API)。
 2. **`roles/serviceusage.serviceUsageConsumer`** (*Service Usage Consumer*)：提供 `serviceusage.services.use` 权限，支持请求携带 `x-goog-user-project` Header 进行配额计费。
 3. **`roles/logging.logWriter`** (*Logs Writer*)：将容器实时流水线日志写入 Cloud Logging。
@@ -127,7 +127,7 @@ chmod +x deploy.sh
 ./deploy.sh
 
 # 部署完成后，在本地启动 IAM 安全加密隧道并打开 http://127.0.0.1:8095：
-gcloud run services proxy argon-mv-eval-v2 --project="${GOOGLE_CLOUD_PROJECT}" --region="${GOOGLE_CLOUD_REGION}" --port=8095
+gcloud run services proxy mv-director-studio-v2 --project="${GOOGLE_CLOUD_PROJECT}" --region="${GOOGLE_CLOUD_REGION}" --port=8095
 ```
 
 ---

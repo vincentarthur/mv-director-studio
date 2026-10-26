@@ -104,15 +104,15 @@ async def add_cors_headers(request: Request, call_next: Any) -> Response:
 def _get_expected_passcode_sha256() -> str:
     """
     Returns the expected 64-char lowercase SHA-256 hex digest of the access passcode:
-    - Priority 1: `ARGON_ACCESS_PASSCODE_SHA256` (Zero-Plaintext mode: Cloud Run only stores the irreversible SHA-256 hash!)
-    - Priority 2: `ARGON_ACCESS_PASSCODE` (mounted from Secret Manager or env, hashed to SHA-256 in memory)
+    - Priority 1: `ACCESS_PASSCODE_SHA256` (Zero-Plaintext mode: Cloud Run only stores the irreversible SHA-256 hash!)
+    - Priority 2: `ACCESS_PASSCODE` (mounted from Secret Manager or env, hashed to SHA-256 in memory)
     """
     import hashlib
 
-    raw_hash = os.environ.get("ARGON_ACCESS_PASSCODE_SHA256", "").strip().lower()
+    raw_hash = os.environ.get("ACCESS_PASSCODE_SHA256", "").strip().lower()
     if len(raw_hash) == 64 and all(c in "0123456789abcdef" for c in raw_hash):
         return raw_hash
-    raw_plain = os.environ.get("ARGON_ACCESS_PASSCODE", "").strip()
+    raw_plain = os.environ.get("ACCESS_PASSCODE", "").strip()
     if raw_plain:
         return hashlib.sha256(raw_plain.encode("utf-8")).hexdigest().lower()
     return ""
@@ -251,7 +251,7 @@ async def api_v2_auth_logout() -> JSONResponse:
 @app.middleware("http")
 async def optional_passcode_auth_middleware(request: Request, call_next: Any) -> Response:
     """
-    Zero-Plaintext Access Gate (`ARGON_ACCESS_PASSCODE_SHA256` or `ARGON_ACCESS_PASSCODE`):
+    Zero-Plaintext Access Gate (`ACCESS_PASSCODE_SHA256` or `ACCESS_PASSCODE`):
     - When unset/empty (default): relies on Cloud Run IAM (`--no-allow-unauthenticated`) or IAP.
     - When set: verifies HMAC-signed `HttpOnly` session cookie.
     - Unauthenticated browser requests see a masked password login card (`_LOGIN_GATE_HTML`) that hashes the passcode with SHA-256 in the browser before POSTing to `/api/v2/auth/login` (never exposing plaintext in the URL or server env!).
@@ -801,10 +801,10 @@ def _inspect_environment_and_storage() -> dict[str, Any]:
         "env_vars": {
             "GOOGLE_CLOUD_PROJECT": os.environ.get("GOOGLE_CLOUD_PROJECT", ""),
             "GOOGLE_CLOUD_LOCATION": os.environ.get("GOOGLE_CLOUD_LOCATION", ""),
-            "ARGON_EVAL_DATA_DIR": os.environ.get("ARGON_EVAL_DATA_DIR", ""),
-            "ARGON_ASSET_STORAGE_MODE": os.environ.get("ARGON_ASSET_STORAGE_MODE", ""),
-            "ARGON_GCS_BUCKET": os.environ.get("ARGON_GCS_BUCKET", ""),
-            "ARGON_GCS_PREFIX": os.environ.get("ARGON_GCS_PREFIX", ""),
+            "EVAL_DATA_DIR": os.environ.get("EVAL_DATA_DIR", ""),
+            "ASSET_STORAGE_MODE": os.environ.get("ASSET_STORAGE_MODE", ""),
+            "GCS_BUCKET": os.environ.get("GCS_BUCKET", ""),
+            "GCS_PREFIX": os.environ.get("GCS_PREFIX", ""),
             "K_SERVICE": os.environ.get("K_SERVICE", ""),
             "K_REVISION": os.environ.get("K_REVISION", ""),
         },

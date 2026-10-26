@@ -7,23 +7,23 @@
 #      ./deploy.sh
 #   2. 零明文 SHA-256 口令门禁模式 (本地交互式隐藏输入口令，云端仅存 64 位 SHA-256 哈希，客户免装 gcloud):
 #      PROMPT_PASSCODE="true" ./deploy.sh
-#      (或直接传入哈希: ARGON_ACCESS_PASSCODE_SHA256="<64位sha256>" ./deploy.sh)
+#      (或直接传入哈希: ACCESS_PASSCODE_SHA256="<64位sha256>" ./deploy.sh)
 #   3. 企业级原生 IAP 模式 (Google 账号白名单):
 #      ENABLE_IAP="true" ./deploy.sh
 # ==============================================================================
 set -euo pipefail
 
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-genai-dnb-demo}"
+PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-}"
 REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
 SERVICE_NAME="${SERVICE_NAME:-mv-director-studio-v2}"
 SA_NAME="${SA_NAME:-mv-director-studio-sa}"
 SA_EMAIL="${SA_EMAIL:-${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com}"
-# 可选：若将素材与持久化数据放在 GCS Bucket，填写 Bucket 名称（同时兼容 GCS_BUCKET 与 ARGON_GCS_BUCKET 两种写法！）
-GCS_BUCKET="${GCS_BUCKET:-${ARGON_GCS_BUCKET:-}}"
+# 可选：若将素材与持久化数据放在 GCS Bucket，填写 Bucket 名称（GCS_BUCKET）
+GCS_BUCKET="${GCS_BUCKET:-${GCS_BUCKET:-}}"
 # 可选：零明文 SHA-256 门禁模式（支持交互式隐藏输入 PROMPT_PASSCODE=true 或直接传 SHA-256 哈希）
 PROMPT_PASSCODE="${PROMPT_PASSCODE:-false}"
-PASSCODE_SHA256="${ARGON_ACCESS_PASSCODE_SHA256:-}"
-RAW_PASSCODE="${ARGON_ACCESS_PASSCODE:-}"
+PASSCODE_SHA256="${ACCESS_PASSCODE_SHA256:-}"
+RAW_PASSCODE="${ACCESS_PASSCODE:-}"
 # 可选：若希望开启 Cloud Run 原生 IAP (Identity-Aware Proxy)
 ENABLE_IAP="${ENABLE_IAP:-false}"
 # 可选：是否跳过自动创建与授权 Service Account (默认 false，即自动配置权限)
@@ -88,7 +88,7 @@ fi
 echo "📦 [3/3] 正在构建并部署 Cloud Run 服务 (${SERVICE_NAME})..."
 
 # 统一拼接所有环境变量到单个 --set-env-vars 中（gcloud 不允许同时传入 --set-env-vars 和 --update-env-vars）
-ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=global,ARGON_ASSET_STORAGE_MODE=auto"
+ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=global,ASSET_STORAGE_MODE=auto"
 
 DEPLOY_ARGS=(
   run deploy "${SERVICE_NAME}"
@@ -109,7 +109,7 @@ DEPLOY_ARGS=(
 if [[ -n "${PASSCODE_SHA256}" ]]; then
   echo "🔐 启用【方案二：零明文 SHA-256 登录门禁模式】— 云端仅存储 SHA-256 哈希 (${PASSCODE_SHA256:0:12}...)"
   DEPLOY_ARGS+=(--allow-unauthenticated)
-  ENV_VARS="${ENV_VARS},ARGON_ACCESS_PASSCODE_SHA256=${PASSCODE_SHA256}"
+  ENV_VARS="${ENV_VARS},ACCESS_PASSCODE_SHA256=${PASSCODE_SHA256}"
 else
   echo "🔒 启用【私密 IAM 零信任边界 (--no-allow-unauthenticated)】"
   DEPLOY_ARGS+=(--no-allow-unauthenticated)
@@ -121,7 +121,7 @@ if [[ -n "${GCS_BUCKET}" ]]; then
     --add-volume "name=eval-data,type=cloud-storage,bucket=${GCS_BUCKET}"
     --add-volume-mount "volume=eval-data,mount-path=/app/argon_eval_data"
   )
-  ENV_VARS="${ENV_VARS},ARGON_GCS_BUCKET=${GCS_BUCKET},ARGON_EVAL_DATA_DIR=/app/argon_eval_data"
+  ENV_VARS="${ENV_VARS},GCS_BUCKET=${GCS_BUCKET},EVAL_DATA_DIR=/app/argon_eval_data"
 fi
 
 DEPLOY_ARGS+=(--set-env-vars "${ENV_VARS}")
