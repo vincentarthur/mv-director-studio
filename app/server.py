@@ -62,6 +62,7 @@ from app.storage import (
     _STORE_LOCK,
     _parse_gcs_bucket_and_prefix,
     call_gemini_model,
+    discover_storage_samples,
     download_from_gcs_universal,
     get_sample_by_id,
     load_all_persisted_state,
@@ -97,10 +98,16 @@ def _get_expected_passcode_sha256() -> str:
     """
     import hashlib
 
-    raw_hash = os.environ.get("ACCESS_PASSCODE_SHA256", "").strip().lower()
+    raw_hash = (
+        os.environ.get("ACCESS_PASSCODE_SHA256")
+        or ""
+    ).strip().lower()
     if len(raw_hash) == 64 and all(c in "0123456789abcdef" for c in raw_hash):
         return raw_hash
-    raw_plain = os.environ.get("ACCESS_PASSCODE", "").strip()
+    raw_plain = (
+        os.environ.get("ACCESS_PASSCODE")
+        or ""
+    ).strip()
     if raw_plain:
         return hashlib.sha256(raw_plain.encode("utf-8")).hexdigest().lower()
     return ""
@@ -294,9 +301,11 @@ def build_normalized_ui_state() -> dict[str, Any]:
         s["testing_focus"] = " · ".join(tags) if tags else (ptxt[:80] if ptxt else "Zero-Prompt 音乐驱动自主叙事")
         s["description"] = ptxt if ptxt else "无用户提示词 (Zero-Prompt 模式)"
         dur_str = s.get("audio_meta", {}).get("duration_str", "03:00")
-        s["audio_file"] = f"input_audio_01.mp3 ({dur_str})"
-        s["audio_url"] = f"/api/media/{s['sample_id']}/input_audio_01.mp3"
-        s["cover_url"] = f"/api/media/{s['sample_id']}/cover.png"
+        audio_fn = s.get("audio_filename") or "input_audio_01.mp3"
+        cover_fn = s.get("cover_filename") or "cover.png"
+        s["audio_file"] = f"{audio_fn} ({dur_str})"
+        s["audio_url"] = f"/api/media/{s['sample_id']}/{audio_fn}"
+        s["cover_url"] = f"/api/media/{s['sample_id']}/{cover_fn}"
         imgs = s.get("images", [])
         s["image_count"] = len(imgs)
         for img in imgs:
@@ -715,15 +724,20 @@ def _inspect_environment_and_storage() -> dict[str, Any]:
     cfg = load_platform_config()
     proj = cfg.get("project", {})
     bucket_name, prefix = _parse_gcs_bucket_and_prefix()
-    manifest = load_manifest()
+    discovered = discover_storage_samples(force_refresh=True)
+    manifest = load_manifest(force_refresh=True)
     sample_checks: list[dict[str, Any]] = []
     ready_audio_count = 0
 
     for item in manifest:
         sid = item["sample_id"]
         files_spec = item.get("files", {})
+        disc_entry = discovered.get(sid, {})
+        disc_gcs_blobs = disc_entry.get("gcs_blobs", {})
+        audio_fn = item.get("audio_filename") or "input_audio_01.mp3"
         file_status: dict[str, Any] = {}
-        for fn in ["input_audio_01.mp3"] + [im["filename"] for im in item.get("images", [])] + (["prompt.txt"] if item.get("has_prompt") else []):
+        expected_fns = [audio_fn] + [im["filename"] for im in item.get("images", [])] + (["prompt.txt"] if item.get("has_prompt") else [])
+        for fn in expected_fns:
             found_path = ""
             found_size = 0
             for cand in (
@@ -737,20 +751,30 @@ def _inspect_environment_and_storage() -> dict[str, Any]:
                     found_path = str(cand)
                     found_size = cand.stat().st_size
                     break
+            local_ok = bool(found_path and (fn == "prompt.txt" or found_size > 128))
+            gcs_blob_path = disc_gcs_blobs.get(fn, "")
             file_status[fn] = {
-                "local_exists": bool(found_path and (fn == "prompt.txt" or found_size > 128)),
+                "local_exists": local_ok,
                 "local_path": found_path,
                 "size_bytes": found_size,
+                "gcs_blob": gcs_blob_path,
+                "available_in_storage": bool(local_ok or gcs_blob_path),
                 "drive_file_id": files_spec.get(fn, ""),
             }
-        if file_status.get("input_audio_01.mp3", {}).get("local_exists"):
+        audio_ready = bool(file_status.get(audio_fn, {}).get("available_in_storage"))
+        if audio_ready:
             ready_audio_count += 1
         sample_checks.append({
             "sample_id": sid,
             "title": item.get("title", ""),
-            "audio_ready_locally": file_status.get("input_audio_01.mp3", {}).get("local_exists", False),
+            "discovered_from_storage": bool(item.get("discovered_from_storage")),
+            "audio_filename": audio_fn,
+            "images": [im["filename"] for im in item.get("images", [])],
+            "audio_ready_locally": file_status.get(audio_fn, {}).get("local_exists", False),
+            "audio_available_in_storage": audio_ready,
             "files": file_status,
-            "last_resolution_trace": _LAST_ASSET_RESOLUTION_TRACES.get(f"{sid}/input_audio_01.mp3", []),
+            "last_resolution_trace": _LAST_ASSET_RESOLUTION_TRACES.get(f"{sid}/{audio_fn}", [])
+            or _LAST_ASSET_RESOLUTION_TRACES.get(f"{sid}/input_audio_01.mp3", []),
         })
 
     try:
@@ -791,6 +815,27 @@ def _inspect_environment_and_storage() -> dict[str, Any]:
         },
         "samples_check": sample_checks,
     }
+
+
+@app.post("/api/v2/samples/rescan")
+async def api_v2_samples_rescan() -> JSONResponse:
+    """Forces a fresh scan of GCS Bucket and local/FUSE sample directories, bypassing samples_manifest.json file list."""
+    manifest = load_manifest(force_refresh=True)
+    return JSONResponse({
+        "ok": True,
+        "sample_count": len(manifest),
+        "samples": [
+            {
+                "sample_id": s["sample_id"],
+                "title": s.get("title", ""),
+                "discovered_from_storage": bool(s.get("discovered_from_storage")),
+                "audio_filename": s.get("audio_filename", "input_audio_01.mp3"),
+                "images": [im["filename"] for im in s.get("images", [])],
+                "has_prompt": bool(s.get("has_prompt")),
+            }
+            for s in manifest
+        ],
+    })
 
 
 @app.get("/api/v2/debug/logs")

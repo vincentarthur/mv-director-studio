@@ -184,7 +184,7 @@ done
 
 ## 四、多源素材与存储机制：样本不在（或在）GCS 上如何访问？
 
-在 `argon_mv_eval_platform.py` 中，所有音频、参考图与提示词均通过统一的 `resolve_sample_asset()` 解析。您可以在 **Tab #7 `⚙️ 配置中心`**（或环境变量 `ARGON_ASSET_STORAGE_MODE`）切换 `auto / gdrive / gcs / local` 模式：
+在 `app/storage.py` 中，所有音频、参考图与提示词均通过统一的 `resolve_sample_asset()` 解析。您可以在 **Tab #7 `⚙️ 配置中心`**（或环境变量 `ASSET_STORAGE_MODE`）切换 `auto / gdrive / gcs / local` 模式：
 
 ### 4.1 场景 A：如果样本【全不在】Google Cloud Storage (GCS) 上
 1. **内置元数据与文档自愈**：`samples_manifest.json` 及 3 份规范文档已内嵌于 `argon_mv_eval_platform.py`。即使在只读容器或空目录下启动，也会自动探测可写目录（`./argon_eval_data` 或 `/tmp/argon_eval_data`）并自动释放文档。
@@ -274,7 +274,7 @@ gcloud storage cp -r argon_eval_data "gs://${GCS_BUCKET}/"
 - **为什么推荐方案二？**
   方案二使用应用内建的 SHA-256 加密门禁中间件，**不经过 Google OAuth 登录，因此完全不需要配置 OAuth Consent Screen**，客户也不需要拥有 Google 账号或安装 `gcloud`。
 - **端到端零明文设计**：
-  - **部署端零明文 (`ARGON_ACCESS_PASSCODE_SHA256`)**：脚本通过 `read -rsp` 隐藏读取口令，在您本机算出 **64 位不可逆 SHA-256 哈希摘要** 后再传给 Cloud Run。
+  - **部署端零明文 (`ACCESS_PASSCODE_SHA256`)**：脚本通过 `read -rsp` 隐藏读取口令，在您本机算出 **64 位不可逆 SHA-256 哈希摘要** 后再传给 Cloud Run。
   - **浏览器端零明文**：客户打开网址时显示暗黑风掩码密码登录卡片（`<input type="password">`），浏览器在前端通过 Web Crypto API 计算 `SHA-256` 后再通过 HTTPS `POST /api/v2/auth/login` 验证，服务端用 `hmac.compare_digest` 比对并种下 7 天有效 `HttpOnly; Secure; SameSite=Lax` Cookie。
 
 1. **一键部署并隐藏输入口令**：
@@ -283,14 +283,14 @@ gcloud storage cp -r argon_eval_data "gs://${GCS_BUCKET}/"
    PROMPT_PASSCODE="true" ./deploy.sh
    ```
 2. **发给客户访问（两种零明文方式）**：
-   - **方式 1（推荐：干净网址 + 掩码登录页）**：直接发 `https://argon-mv-eval-v2-xxxxx.us-central1.run.app`，客户输入口令（自动掩码 `••••••`）即可进入，URL 地址栏全程零明文。
+   - **方式 1（推荐：干净网址 + 掩码登录页）**：直接发 `https://mv-director-studio-v2-xxxxx.us-central1.run.app`，客户输入口令（自动掩码 `••••••`）即可进入，URL 地址栏全程零明文。
    - **方式 2（免输跳转：SHA-256 Token 链接 + 自动 303 抹除地址栏参数）**：发送脚本打印的 `https://xxx.run.app/?token=<64位SHA256哈希>`，客户点击瞬间种下 Cookie 并立即 `303` 重定向回干净的 `/` 根路径，地址栏参数自动消失。
 3. **随时更换口令（秒级生效，旧 Cookie 立即失效）**：
    ```bash
    NEW_HASH=$(printf "%s" "新口令" | sha256sum | awk '{print $1}')
-   gcloud run services update argon-mv-eval-v2 \
+   gcloud run services update mv-director-studio-v2 \
      --project="genai-dnb-demo" --region="us-central1" \
-     --update-env-vars="ARGON_ACCESS_PASSCODE_SHA256=${NEW_HASH}"
+     --update-env-vars="ACCESS_PASSCODE_SHA256=${NEW_HASH}"
    ```
 
 ---

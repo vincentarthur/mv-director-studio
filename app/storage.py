@@ -196,8 +196,8 @@ def call_gemini_model(
                 err_msg = (
                     f"未找到样本媒体文件: {p_cand} (DATA_DIR={DATA_DIR}, SAMPLES_DIR={SAMPLES_DIR}, "
                     f"GCS_BUCKET={bucket_name or '<未配置>'}, GCS_PREFIX={prefix or '<空>'})。"
-                    f"\n请检查：(1) 若使用 GCS，请确认传入了环境变量 ARGON_GCS_BUCKET (或 GCS_BUCKET) 且对象位于 gs://<bucket>/samples/01..10/ 或 gs://<bucket>/argon_eval_data/samples/01..10/；"
-                    f"(2) 若使用本地目录，请确认包含 argon_eval_data/samples/01..10；"
+                    f"\n请检查：(1) 若使用 GCS，请确认传入了环境变量 GCS_BUCKET 且对象位于 gs://<bucket>/samples/01..10/；"
+                    f"(2) 若使用本地目录，请确认包含 data/samples/01..10；"
                     f"(3) 或在 Tab #7 配置中心直接从浏览器上传素材！{trace_detail}"
                 )
                 log_runtime("ERROR", "MEDIA_FILE_MISSING", err_msg)
@@ -313,30 +313,68 @@ def call_gemini_model(
 
 
 # ==============================================================================
-# 4. Multi-Source Asset Resolver (Local / GCS FUSE / GCS Bucket API / Google Drive / URL)
+# 4. Multi-Source Asset Resolver (Dynamic GCS / FUSE Discovery + Google Drive Fallback)
 # ==============================================================================
-def load_manifest() -> list[dict[str, Any]]:
-    if MANIFEST_PATH.exists():
-        try:
-            return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return copy.deepcopy(BUILTIN_SAMPLES_MANIFEST)
+_AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac")
+_IMAGE_EXTS = (".jpeg", ".jpg", ".png", ".webp")
+_VIDEO_EXTS = (".mp4", ".mov", ".webm")
+
+_STORAGE_DISCOVERY_LOCK = threading.Lock()
+_STORAGE_DISCOVERY_CACHE: dict[str, Any] = {"ts": 0.0, "bucket": "", "samples": {}}
 
 
-def get_sample_by_id(sample_id: str) -> dict[str, Any]:
-    for item in load_manifest():
-        if item["sample_id"] == sample_id:
-            return item
-    raise KeyError(f"Sample {sample_id} not found in manifest.")
+def guess_media_mime_type(filename: str, default_mime: str = "application/octet-stream") -> str:
+    ext = Path(filename).suffix.lower()
+    return {
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".m4a": "audio/mp4",
+        ".aac": "audio/aac",
+        ".ogg": "audio/ogg",
+        ".flac": "audio/flac",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".mp4": "video/mp4",
+        ".mov": "video/quicktime",
+        ".webm": "video/webm",
+        ".txt": "text/plain",
+    }.get(ext, default_mime)
+
+
+def _detect_gcs_fuse_bucket_from_mounts() -> str:
+    """Auto-detects the GCS bucket name from /proc/mounts when Cloud Run mounts a GCS FUSE volume."""
+    mounts_file = Path("/proc/mounts")
+    if not mounts_file.exists():
+        return ""
+    try:
+        for line in mounts_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+            parts = line.split()
+            if len(parts) >= 3 and "gcsfuse" in parts[2].lower():
+                dev = parts[0].strip()
+                if dev and dev not in ("gcsfuse", "none", "fuse") and not dev.startswith("/"):
+                    return dev.strip("/")
+    except Exception:
+        pass
+    return ""
 
 
 def _parse_gcs_bucket_and_prefix() -> tuple[str, str]:
-    """Returns (bucket_name, prefix_without_leading_or_trailing_slash) from config or env."""
+    """Returns (bucket_name, prefix_without_leading_or_trailing_slash) from config, env, or Cloud Run FUSE mount."""
     cfg = load_platform_config()
     proj = cfg.get("project", {})
-    raw_bucket = (proj.get("gcs_bucket") or os.environ.get("ARGON_GCS_BUCKET") or "").strip()
-    raw_prefix = (proj.get("gcs_prefix") or os.environ.get("ARGON_GCS_PREFIX") or "argon_eval_data").strip()
+    raw_bucket = (
+        proj.get("gcs_bucket")
+        or os.environ.get("GCS_BUCKET")
+        or _detect_gcs_fuse_bucket_from_mounts()
+        or ""
+    ).strip()
+    raw_prefix = (
+        proj.get("gcs_prefix")
+        or os.environ.get("GCS_PREFIX")
+        or ""
+    ).strip()
     if raw_bucket.startswith("gs://"):
         without_scheme = raw_bucket[5:].strip("/")
         parts = without_scheme.split("/", 1)
@@ -400,6 +438,272 @@ def _get_gcp_bearer_tokens(
 _LAST_ASSET_RESOLUTION_TRACES: dict[str, list[str]] = {}
 
 
+def _list_gcs_bucket_blobs(bucket_name: str, timeout_sec: int = 20) -> list[tuple[str, int]]:
+    """Lists all (blob_name, size_bytes) in the GCS bucket via SDK or zero-dependency JSON API."""
+    if not bucket_name:
+        return []
+    results: list[tuple[str, int]] = []
+    # 1. Try google-cloud-storage SDK
+    try:
+        from google.cloud import storage  # type: ignore
+
+        proj_id = load_platform_config()["project"].get("project_id") or None
+        client = storage.Client(project=proj_id)
+        bucket = client.bucket(bucket_name)
+        for blob in client.list_blobs(bucket, timeout=timeout_sec):
+            bname = getattr(blob, "name", "") or ""
+            bsize = int(getattr(blob, "size", 0) or 0)
+            if bname and not bname.endswith("/"):
+                results.append((bname, bsize))
+        if results:
+            return results
+    except Exception:
+        pass
+
+    # 2. Fallback to GCS JSON API list endpoint
+    tokens = _get_gcp_bearer_tokens()
+    page_token = ""
+    for _ in range(5):
+        q = f"maxResults=1000&pageToken={urllib.parse.quote(page_token)}" if page_token else "maxResults=1000"
+        url = f"https://storage.googleapis.com/storage/v1/b/{bucket_name}/o?{q}"
+        fetched_page = False
+        for tok in tokens:
+            try:
+                req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}"})
+                with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+                    payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+                    for item in payload.get("items", []):
+                        bname = str(item.get("name", ""))
+                        bsize = int(item.get("size", 0) or 0)
+                        if bname and not bname.endswith("/"):
+                            results.append((bname, bsize))
+                    page_token = str(payload.get("nextPageToken", ""))
+                    fetched_page = True
+                    break
+            except Exception:
+                continue
+        if not fetched_page or not page_token:
+            break
+    return results
+
+
+def discover_storage_samples(force_refresh: bool = False) -> dict[str, dict[str, Any]]:
+    """
+    Dynamically discovers sample files from both:
+      1. Mounted GCS FUSE / local candidate directories
+      2. Direct GCS Bucket object listing (`gs://{bucket}/...`)
+    Returns `{sample_id: {"local_files": {fname: Path}, "gcs_blobs": {fname: blob_name}}}`
+    so actual files in GCS / FUSE take precedence over static `samples_manifest.json`.
+    """
+    bucket_name, _ = _parse_gcs_bucket_and_prefix()
+    now = time.time()
+    with _STORAGE_DISCOVERY_LOCK:
+        if (
+            not force_refresh
+            and (now - float(_STORAGE_DISCOVERY_CACHE.get("ts", 0.0))) < 15.0
+            and _STORAGE_DISCOVERY_CACHE.get("bucket") == bucket_name
+            and _STORAGE_DISCOVERY_CACHE.get("samples")
+        ):
+            return copy.deepcopy(_STORAGE_DISCOVERY_CACHE["samples"])
+
+    discovered: dict[str, dict[str, Any]] = {}
+
+    def _ensure_sid(raw_sid: str) -> str | None:
+        m = re.match(r"^(?:sample[_-]?)?(\d{1,2})$", raw_sid.strip(), re.IGNORECASE)
+        if not m:
+            return None
+        sid_norm = f"{int(m.group(1)):02d}"
+        if sid_norm not in discovered:
+            discovered[sid_norm] = {"local_files": {}, "gcs_blobs": {}}
+        return sid_norm
+
+    # 1. Scan local / Cloud Run GCS FUSE directories
+    candidate_roots = (
+        SAMPLES_DIR,
+        DATA_DIR / "data" / "samples",
+        DATA_DIR / "argon_eval_data" / "samples",
+        DATA_DIR,
+        APP_DIR / "data" / "samples",
+        APP_DIR / "argon_eval_data" / "samples",
+        APP_DIR / "samples",
+        Path("/tmp/argon_eval_data/samples"),
+    )
+    seen_dirs: set[str] = set()
+    for root in candidate_roots:
+        try:
+            if not root.exists() or not root.is_dir():
+                continue
+            root_str = str(root.resolve())
+            if root_str in seen_dirs:
+                continue
+            seen_dirs.add(root_str)
+            for child in sorted(root.iterdir()):
+                if not child.is_dir():
+                    continue
+                sid = _ensure_sid(child.name)
+                if not sid:
+                    continue
+                for fpath in sorted(child.iterdir()):
+                    if not fpath.is_file() or fpath.name.startswith("."):
+                        continue
+                    try:
+                        sz = fpath.stat().st_size
+                    except OSError:
+                        continue
+                    if fpath.suffix.lower() == ".txt" or sz > 128:
+                        discovered[sid]["local_files"].setdefault(fpath.name, fpath)
+        except Exception:
+            continue
+
+    # 2. Scan GCS bucket directly via API so objects are found even when FUSE doesn't list implicit dirs
+    if bucket_name:
+        for bname, bsize in _list_gcs_bucket_blobs(bucket_name):
+            if any(seg in bname for seg in ("runs/", "runs_v2/", "snapshots/", "jobs/")):
+                continue
+            m = re.search(r"(?:^|/)(?:samples/)?(?:sample[_-]?)?(\d{1,2})/([^/]+)$", bname, re.IGNORECASE)
+            if not m:
+                continue
+            sid = _ensure_sid(m.group(1))
+            fname = m.group(2).strip()
+            if not sid or not fname or fname.startswith("."):
+                continue
+            if fname.lower().endswith(".txt") or bsize == 0 or bsize > 128:
+                discovered[sid]["gcs_blobs"].setdefault(fname, bname)
+
+    with _STORAGE_DISCOVERY_LOCK:
+        _STORAGE_DISCOVERY_CACHE["ts"] = now
+        _STORAGE_DISCOVERY_CACHE["bucket"] = bucket_name
+        _STORAGE_DISCOVERY_CACHE["samples"] = copy.deepcopy(discovered)
+
+    return discovered
+
+
+def _apply_discovered_files_to_sample_spec(item: dict[str, Any], disc: dict[str, Any] | None) -> dict[str, Any]:
+    """Overrides a sample manifest entry's files/images/audio/prompt using actual files discovered in GCS/local."""
+    sid = item["sample_id"]
+    item.setdefault("audio_filename", "input_audio_01.mp3")
+    if not disc:
+        return item
+    local_map: dict[str, Path] = disc.get("local_files", {})
+    gcs_map: dict[str, str] = disc.get("gcs_blobs", {})
+    all_fnames = sorted(set(local_map.keys()) | set(gcs_map.keys()))
+    if not all_fnames:
+        return item
+
+    audio_files = [f for f in all_fnames if Path(f).suffix.lower() in _AUDIO_EXTS]
+    image_files = [f for f in all_fnames if Path(f).suffix.lower() in _IMAGE_EXTS]
+    video_files = [f for f in all_fnames if Path(f).suffix.lower() in _VIDEO_EXTS]
+    txt_files = [f for f in all_fnames if Path(f).suffix.lower() == ".txt"]
+
+    orig_files_map = item.get("files", {}) if isinstance(item.get("files"), dict) else {}
+    new_files_map: dict[str, str] = {}
+    for fn in all_fnames:
+        new_files_map[fn] = orig_files_map.get(fn, "")
+
+    # 1. Audio file (prefer input_audio*, else first audio file in GCS/local)
+    if audio_files:
+        pref_audio = [f for f in audio_files if f.lower().startswith("input_audio")]
+        audio_fn = pref_audio[0] if pref_audio else audio_files[0]
+        item["audio_filename"] = audio_fn
+        item["audio_url"] = f"/api/media/{sid}/{audio_fn}"
+
+    # 2. Reference images (prefer input_image_*, else any non-cover image, else cover image)
+    if image_files:
+        non_cover = [f for f in image_files if not f.lower().startswith("cover.")]
+        input_imgs = [f for f in non_cover if f.lower().startswith("input_image")]
+        ref_imgs = input_imgs or non_cover or image_files
+        orig_img_meta = {im.get("filename"): im for im in item.get("images", []) if isinstance(im, dict)}
+        item["images"] = [
+            {
+                "filename": fn,
+                "url": f"/api/media/{sid}/{fn}",
+                "width": orig_img_meta.get(fn, {}).get("width", 768),
+                "height": orig_img_meta.get(fn, {}).get("height", 1024),
+                "size_kb": orig_img_meta.get(fn, {}).get("size_kb", 64.0),
+            }
+            for fn in ref_imgs
+        ]
+        if len(ref_imgs) >= 2:
+            item["protagonist_mode"] = "dual"
+        elif item.get("protagonist_mode") == "dual" and len(ref_imgs) == 1:
+            item["protagonist_mode"] = "single"
+
+        cover_cands = [f for f in image_files if f.lower().startswith("cover.")]
+        cover_fn = cover_cands[0] if cover_cands else ref_imgs[0]
+        item["cover_filename"] = cover_fn
+        item["cover_url"] = f"/api/media/{sid}/{cover_fn}"
+
+    # 3. Video file
+    if video_files:
+        vid_fn = video_files[0]
+        item["final_mv_local"] = True
+        item["final_mv_url"] = f"/api/media/{sid}/{vid_fn}"
+
+    # 4. Prompt file
+    if txt_files:
+        ptxt_fn = "prompt.txt" if "prompt.txt" in txt_files else txt_files[0]
+        item["prompt_filename"] = ptxt_fn
+        if ptxt_fn in local_map and local_map[ptxt_fn].exists():
+            try:
+                txt_val = local_map[ptxt_fn].read_text(encoding="utf-8", errors="replace").strip()
+                if txt_val:
+                    item["prompt_text"] = txt_val
+                    item["has_prompt"] = True
+            except Exception:
+                pass
+
+    item["files"] = new_files_map
+    item["discovered_from_storage"] = True
+    return item
+
+
+def load_manifest(force_refresh: bool = False) -> list[dict[str, Any]]:
+    base_list: list[dict[str, Any]] = []
+    if MANIFEST_PATH.exists():
+        try:
+            base_list = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            base_list = []
+    if not base_list:
+        base_list = copy.deepcopy(BUILTIN_SAMPLES_MANIFEST)
+
+    discovered = discover_storage_samples(force_refresh=force_refresh)
+    by_id: dict[str, dict[str, Any]] = {}
+    for item in base_list:
+        sid = item["sample_id"]
+        by_id[sid] = _apply_discovered_files_to_sample_spec(copy.deepcopy(item), discovered.get(sid))
+
+    # Also include any additional sample folders present in GCS/local beyond 01..10
+    for sid, disc in sorted(discovered.items()):
+        if sid not in by_id and (disc.get("local_files") or disc.get("gcs_blobs")):
+            synth = {
+                "sample_id": sid,
+                "folder_id": "",
+                "title": f"Sample {sid} — GCS 动态发现样本",
+                "language": "Auto-Detect",
+                "protagonist_mode": "single",
+                "has_prompt": False,
+                "has_baseline_mv": False,
+                "stress_tags": ["GCS动态样本"],
+                "files": {},
+                "audio_meta": {"duration_sec": 180.0, "duration_str": "03:00"},
+                "audio_url": f"/api/media/{sid}/input_audio_01.mp3",
+                "cover_url": f"/api/media/{sid}/cover.png",
+                "prompt_text": "",
+                "images": [],
+            }
+            by_id[sid] = _apply_discovered_files_to_sample_spec(synth, disc)
+
+    return [by_id[k] for k in sorted(by_id.keys())]
+
+
+def get_sample_by_id(sample_id: str, force_refresh: bool = False) -> dict[str, Any]:
+    for item in load_manifest(force_refresh=force_refresh):
+        if item["sample_id"] == sample_id:
+            return item
+    raise KeyError(f"Sample {sample_id} not found in manifest or GCS.")
+
+
 def download_from_gcs_universal(
     rel_object_path: str,
     dest: Path,
@@ -411,7 +715,7 @@ def download_from_gcs_universal(
     if not bucket_name:
         if trace_notes is not None:
             trace_notes.append(
-                "GCS跳过: 未配置 GCS Bucket (环境变量 ARGON_GCS_BUCKET 与 platform_config.project.gcs_bucket 均为空)"
+                "GCS跳过: 未配置 GCS Bucket (环境变量 GCS_BUCKET 与 platform_config.project.gcs_bucket 均为空)"
             )
         return False
     clean_rel = rel_object_path.lstrip("/")
@@ -420,14 +724,22 @@ def download_from_gcs_universal(
         candidate_blobs.append(f"{prefix}/{clean_rel}")
     if clean_rel not in candidate_blobs:
         candidate_blobs.append(clean_rel)
-    if clean_rel.startswith("runs_v2/"):
+    if clean_rel.startswith("runs/"):
+        alt_runs = "runs_v2/" + clean_rel[len("runs/"):]
+        if prefix and f"{prefix}/{alt_runs}" not in candidate_blobs:
+            candidate_blobs.append(f"{prefix}/{alt_runs}")
+        if alt_runs not in candidate_blobs:
+            candidate_blobs.append(alt_runs)
+    elif clean_rel.startswith("runs_v2/"):
         alt_runs = "runs/" + clean_rel[len("runs_v2/"):]
         if prefix and f"{prefix}/{alt_runs}" not in candidate_blobs:
             candidate_blobs.append(f"{prefix}/{alt_runs}")
         if alt_runs not in candidate_blobs:
             candidate_blobs.append(alt_runs)
-    if f"argon_eval_data/{clean_rel}" not in candidate_blobs:
-        candidate_blobs.append(f"argon_eval_data/{clean_rel}")
+    for extra_prefix in ("data", "argon_eval_data"):
+        cand_blob = f"{extra_prefix}/{clean_rel}"
+        if cand_blob not in candidate_blobs:
+            candidate_blobs.append(cand_blob)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
 
@@ -599,18 +911,63 @@ def download_drive_file_universal(
     return dest.exists() and dest.stat().st_size > 128
 
 
+def _match_alternate_filename(requested_name: str, available_names: list[str]) -> str:
+    """
+    Matches `requested_name` against actual files discovered in GCS/local when filenames or extensions differ
+    from `samples_manifest.json` (e.g., `input_image_01.png` instead of `input_image_01.jpeg`, or `audio.mp3`).
+    """
+    if requested_name in available_names:
+        return requested_name
+    req_path = Path(requested_name)
+    req_stem = req_path.stem.lower()
+    req_ext = req_path.suffix.lower()
+
+    # 1. Exact stem match with different extension (e.g. input_image_01.jpg / .png vs .jpeg)
+    for fn in available_names:
+        if Path(fn).stem.lower() == req_stem:
+            return fn
+
+    # 2. Audio role match
+    if req_ext in _AUDIO_EXTS or req_stem.startswith("input_audio"):
+        auds = [f for f in available_names if Path(f).suffix.lower() in _AUDIO_EXTS]
+        if auds:
+            pref = [f for f in auds if f.lower().startswith("input_audio")]
+            return pref[0] if pref else auds[0]
+
+    # 3. Image / cover role match
+    if req_ext in _IMAGE_EXTS or req_stem.startswith("input_image") or req_stem == "cover":
+        imgs = [f for f in available_names if Path(f).suffix.lower() in _IMAGE_EXTS]
+        if imgs:
+            if req_stem == "cover":
+                covs = [f for f in imgs if f.lower().startswith("cover.")]
+                return covs[0] if covs else imgs[0]
+            non_cov = [f for f in imgs if not f.lower().startswith("cover.")]
+            return non_cov[0] if non_cov else imgs[0]
+
+    # 4. Prompt text role match
+    if req_ext == ".txt" or req_stem == "prompt":
+        txts = [f for f in available_names if Path(f).suffix.lower() == ".txt"]
+        if txts:
+            return "prompt.txt" if "prompt.txt" in txts else txts[0]
+
+    return ""
+
+
 def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Path:
     """
-    Universal multi-source asset resolver with full diagnostic trace:
-    1. Local disk / Cloud Run GCS FUSE mounted volume (`SAMPLES_DIR / sample_id / filename` or nested `argon_eval_data/samples/...`)
-    2. Google Cloud Storage bucket (`gs://{gcs_bucket}/{gcs_prefix}/samples/{sample_id}/{filename}` or root `gs://{gcs_bucket}/samples/...`)
+    Universal multi-source asset resolver with dynamic GCS / FUSE file discovery:
+    1. Local disk / Cloud Run GCS FUSE mounted volume (exact or dynamically discovered filename/extension)
+    2. Google Cloud Storage bucket (exact discovered blob path in `gs://{gcs_bucket}/...` or prefix fallback)
     3. Google Drive API / direct download (`file_id` from `samples_manifest.json`)
     """
     trace_key = f"{sample_id}/{filename}"
     trace_notes: list[str] = []
     local_candidates = (
         SAMPLES_DIR / sample_id / filename,
+        DATA_DIR / sample_id / filename,
+        DATA_DIR / "data" / "samples" / sample_id / filename,
         DATA_DIR / "argon_eval_data" / "samples" / sample_id / filename,
+        APP_DIR / "data" / "samples" / sample_id / filename,
         APP_DIR / "argon_eval_data" / "samples" / sample_id / filename,
         APP_DIR / "samples" / sample_id / filename,
         Path("/tmp/argon_eval_data/samples") / sample_id / filename,
@@ -618,7 +975,7 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
     for cand in local_candidates:
         if cand.exists():
             sz = cand.stat().st_size
-            if filename == "prompt.txt" or sz > 128:
+            if filename.endswith(".txt") or sz > 128:
                 trace_notes.append(f"本地/FUSE命中: {cand} ({sz} bytes)")
                 _LAST_ASSET_RESOLUTION_TRACES[trace_key] = trace_notes
                 return cand
@@ -627,6 +984,23 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
         else:
             trace_notes.append(f"本地未找到: {cand}")
 
+    # Check dynamically discovered local & GCS files for this sample (handles filename/extension differences)
+    disc = discover_storage_samples().get(sample_id, {})
+    local_disc_map: dict[str, Path] = disc.get("local_files", {})
+    gcs_disc_map: dict[str, str] = disc.get("gcs_blobs", {})
+
+    if local_disc_map:
+        matched_local_fn = _match_alternate_filename(filename, sorted(local_disc_map.keys()))
+        if matched_local_fn and matched_local_fn in local_disc_map:
+            matched_path = local_disc_map[matched_local_fn]
+            if matched_path.exists():
+                sz = matched_path.stat().st_size
+                trace_notes.append(
+                    f"本地/FUSE动态发现命中: {matched_path} ({sz} bytes, 匹配请求文件 {filename})"
+                )
+                _LAST_ASSET_RESOLUTION_TRACES[trace_key] = trace_notes
+                return matched_path
+
     # Inspect what actually exists inside DATA_DIR and SAMPLES_DIR to aid Cloud Run FUSE mount debugging
     try:
         data_dir_entries = [p.name for p in DATA_DIR.iterdir()][:15] if DATA_DIR.exists() else ["<DATA_DIR不存在>"]
@@ -634,7 +1008,7 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
         sample_sub_dir = SAMPLES_DIR / sample_id
         sub_entries = [p.name for p in sample_sub_dir.iterdir()][:15] if sample_sub_dir.exists() else ["<样本子目录不存在>"]
         trace_notes.append(
-            f"目录快照: DATA_DIR({DATA_DIR})={data_dir_entries} | SAMPLES_DIR({SAMPLES_DIR})={samples_dir_entries} | SampleDir({sample_sub_dir})={sub_entries}"
+            f"目录快照: DATA_DIR({DATA_DIR})={data_dir_entries} | SAMPLES_DIR({SAMPLES_DIR})={samples_dir_entries} | SampleDir({sample_sub_dir})={sub_entries} | GCS已发现对象={list(gcs_disc_map.values())[:10]}"
         )
     except Exception as dir_exc:
         trace_notes.append(f"目录快照检查异常: {dir_exc}")
@@ -647,14 +1021,29 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
         target.parent.mkdir(parents=True, exist_ok=True)
 
     cfg_proj = load_platform_config().get("project", {})
-    mode = (cfg_proj.get("asset_storage_mode") or os.environ.get("ARGON_ASSET_STORAGE_MODE") or "auto").lower()
+    mode = (
+        cfg_proj.get("asset_storage_mode")
+        or os.environ.get("ASSET_STORAGE_MODE")
+        or "auto"
+    ).lower()
     bucket_name, prefix = _parse_gcs_bucket_and_prefix()
     trace_notes.append(
         f"远程回退配置: storage_mode={mode} | gcs_bucket={bucket_name or '<未设置>'} | gcs_prefix={prefix or '<空>'} | drive_file_id={file_id or '<无>'}"
     )
 
     # Try GCS if configured (and mode is 'auto' or 'gcs')
-    if mode in ("auto", "gcs"):
+    if mode in ("auto", "gcs") and bucket_name:
+        if not gcs_disc_map:
+            disc = discover_storage_samples(force_refresh=True).get(sample_id, {})
+            gcs_disc_map = disc.get("gcs_blobs", {})
+        if gcs_disc_map:
+            matched_gcs_fn = _match_alternate_filename(filename, sorted(gcs_disc_map.keys()))
+            if matched_gcs_fn and matched_gcs_fn in gcs_disc_map:
+                exact_blob = gcs_disc_map[matched_gcs_fn]
+                dest_for_blob = target.parent / matched_gcs_fn
+                if download_from_gcs_universal(exact_blob, dest_for_blob, trace_notes=trace_notes):
+                    _LAST_ASSET_RESOLUTION_TRACES[trace_key] = trace_notes
+                    return dest_for_blob
         if download_from_gcs_universal(f"samples/{sample_id}/{filename}", target, trace_notes=trace_notes):
             _LAST_ASSET_RESOLUTION_TRACES[trace_key] = trace_notes
             return target
@@ -666,7 +1055,7 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
             return target
 
     _LAST_ASSET_RESOLUTION_TRACES[trace_key] = trace_notes
-    if filename != "prompt.txt":
+    if not filename.endswith(".txt"):
         log_runtime(
             "WARNING",
             "ASSET_RESOLVE_MISS",
@@ -679,34 +1068,45 @@ def resolve_sample_asset(sample_id: str, filename: str, file_id: str = "") -> Pa
 def build_media_part_for_gemini(sample_id: str, filename: str, mime_type: str, file_id: str = "") -> dict[str, Any]:
     """
     Builds a Gemini multimodal Part:
-    - First resolves via `resolve_sample_asset` (Local Disk / GCS FUSE -> GCS Bucket -> Google Drive API) and passes local cached path.
+    - First resolves via `resolve_sample_asset` (Local Disk / GCS FUSE -> Dynamic GCS Discovery -> Google Drive API)
+      and passes the local cached path with accurate MIME type based on the actual file extension.
     - If local download is skipped/unavailable and `gcs_bucket` + `gcs_use_direct_uri` + `prefer_vertexai` are active,
-      passes `gs://{bucket}/{prefix}/samples/{sample_id}/{filename}` URI directly to Vertex AI (`types.Part.from_uri`).
+      passes the exact discovered `gs://{bucket}/{blob_name}` URI directly to Vertex AI (`types.Part.from_uri`).
     """
     local_path = resolve_sample_asset(sample_id, filename, file_id=file_id)
+    actual_mime = guess_media_mime_type(local_path.name, default_mime=mime_type)
     if local_path.exists() and local_path.stat().st_size > 128:
-        return {"inline_data": {"mime_type": mime_type, "data": str(local_path)}}
+        return {"inline_data": {"mime_type": actual_mime, "data": str(local_path)}}
 
     cfg_proj = load_platform_config().get("project", {})
     bucket_name, prefix = _parse_gcs_bucket_and_prefix()
     if bucket_name and cfg_proj.get("prefer_vertexai", True) and cfg_proj.get("gcs_use_direct_uri", True):
+        disc = discover_storage_samples().get(sample_id, {})
+        gcs_disc_map: dict[str, str] = disc.get("gcs_blobs", {})
+        matched_gcs_fn = _match_alternate_filename(filename, sorted(gcs_disc_map.keys())) if gcs_disc_map else ""
+        if matched_gcs_fn and matched_gcs_fn in gcs_disc_map:
+            exact_blob = gcs_disc_map[matched_gcs_fn]
+            actual_mime = guess_media_mime_type(matched_gcs_fn, default_mime=mime_type)
+            return {"file_data": {"mime_type": actual_mime, "file_uri": f"gs://{bucket_name}/{exact_blob}"}}
         rel = f"samples/{sample_id}/{filename}"
         gs_uri = f"gs://{bucket_name}/{prefix}/{rel}" if prefix else f"gs://{bucket_name}/{rel}"
-        return {"file_data": {"mime_type": mime_type, "file_uri": gs_uri}}
+        return {"file_data": {"mime_type": actual_mime, "file_uri": gs_uri}}
 
-    return {"inline_data": {"mime_type": mime_type, "data": str(local_path)}}
+    return {"inline_data": {"mime_type": actual_mime, "data": str(local_path)}}
 
 
 def ensure_sample_files_synced(sample_id: str) -> dict[str, Any]:
-    spec = get_sample_by_id(sample_id)
+    spec = get_sample_by_id(sample_id, force_refresh=True)
     sdir = SAMPLES_DIR / sample_id
     sdir.mkdir(parents=True, exist_ok=True)
     for fname, fid in spec.get("files", {}).items():
-        if fname == "final_mv.mp4":
+        if Path(fname).suffix.lower() in _VIDEO_EXTS:
             continue
         resolve_sample_asset(sample_id, fname, file_id=fid)
-    # Also ensure prompt_text in spec is populated if prompt.txt was downloaded or uploaded
-    ptxt_path = sdir / "prompt.txt"
+    # Refresh spec after any newly downloaded files so audio_filename/images/prompt_text reflect actual files
+    spec = get_sample_by_id(sample_id, force_refresh=True)
+    ptxt_fn = spec.get("prompt_filename", "prompt.txt")
+    ptxt_path = sdir / ptxt_fn
     if ptxt_path.exists() and not spec.get("prompt_text"):
         try:
             spec["prompt_text"] = ptxt_path.read_text(encoding="utf-8", errors="replace").strip()
@@ -740,7 +1140,7 @@ def load_track_store(track_key: str) -> dict[str, Any]:
     # Hydrate from GCS if local/FUSE file is missing or empty
     if (not data or not data.get("samples")) and track_key != "step3_prompt_opt" and _parse_gcs_bucket_and_prefix()[0]:
         try:
-            if download_from_gcs_universal(f"runs_v2/{fpath.name}", fpath):
+            if download_from_gcs_universal(f"runs/{fpath.name}", fpath):
                 data = json.loads(fpath.read_text(encoding="utf-8"))
         except Exception:
             pass
@@ -777,7 +1177,7 @@ def save_sample_to_track_store(track_key: str, sample_id: str, record: dict[str,
         if _parse_gcs_bucket_and_prefix()[0]:
             threading.Thread(
                 target=upload_to_gcs_universal,
-                args=(f"runs_v2/{TRACK_FILES[track_key].name}", raw_bytes),
+                args=(f"runs/{TRACK_FILES[track_key].name}", raw_bytes),
                 daemon=True,
             ).start()
 

@@ -54,9 +54,9 @@ gcloud config set project "${GOOGLE_CLOUD_PROJECT}"
 ### 第 2 步：（可选）将 10 首样本上传至同区域 GCS Bucket 持久化保存
 *(若您下载的是 108.6 MB 完整包，执行以下 3 行命令会自动创建同区域 GCS 存储桶并上传样本；若暂不使用 GCS，可直接跳至第 3 步)*
 ```bash
-export ARGON_GCS_BUCKET="${GOOGLE_CLOUD_PROJECT}-argon-mv-eval"
-gcloud storage buckets create "gs://${ARGON_GCS_BUCKET}" --project="${GOOGLE_CLOUD_PROJECT}" --location="${GOOGLE_CLOUD_REGION}" --uniform-bucket-level-access || true
-gcloud storage cp -r data/* "gs://${ARGON_GCS_BUCKET}/"
+export GCS_BUCKET="${GOOGLE_CLOUD_PROJECT}-mv-eval"
+gcloud storage buckets create "gs://${GCS_BUCKET}" --project="${GOOGLE_CLOUD_PROJECT}" --location="${GOOGLE_CLOUD_REGION}" --uniform-bucket-level-access || true
+gcloud storage cp -r data/* "gs://${GCS_BUCKET}/"
 ```
 
 ### 第 3 步：一键部署并设置访问口令

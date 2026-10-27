@@ -26,8 +26,8 @@ UI_HTML_PATH = STATIC_DIR / "index.html"
 def _resolve_writable_data_dir() -> Path:
     """Resolves the writable runtime data directory (`data/` by default, with fallback to `/tmp/mv_eval_data`)."""
     env_dir = (
-        os.environ.get("MV_STUDIO_DATA_DIR")
-        or os.environ.get("ARGON_EVAL_DATA_DIR")
+        os.environ.get("EVAL_DATA_DIR")
+        or os.environ.get("MV_STUDIO_DATA_DIR")
         or ""
     ).strip()
     if env_dir:
@@ -726,11 +726,11 @@ DEFAULT_PLATFORM_CONFIG: dict[str, Any] = {
         "api_key": "",
         "prefer_vertexai": True,
         "request_timeout_sec": 240,
-        "asset_storage_mode": os.environ.get("ARGON_ASSET_STORAGE_MODE", "auto"),
-        "gcs_bucket": os.environ.get("ARGON_GCS_BUCKET", ""),
-        "gcs_prefix": os.environ.get("ARGON_GCS_PREFIX", "argon_eval_data"),
-        "gcs_use_direct_uri": os.environ.get("ARGON_GCS_USE_DIRECT_URI", "true").lower() in ("1", "true", "yes"),
-        "gdrive_folder_id": os.environ.get("ARGON_GDRIVE_FOLDER_ID", "1MYa7S2ZjTXcOHrK3lDBUzhCVUUHxyp9Z"),
+        "asset_storage_mode": os.environ.get("ASSET_STORAGE_MODE") or "auto",
+        "gcs_bucket": os.environ.get("GCS_BUCKET") or "",
+        "gcs_prefix": os.environ.get("GCS_PREFIX") or "",
+        "gcs_use_direct_uri": (os.environ.get("GCS_USE_DIRECT_URI") or "true").lower() in ("1", "true", "yes"),
+        "gdrive_folder_id": os.environ.get("GDRIVE_FOLDER_ID") or "1MYa7S2ZjTXcOHrK3lDBUzhCVUUHxyp9Z",
     },
     "tab_models": {
         "tab1_baseline": {
@@ -838,6 +838,12 @@ def load_platform_config() -> dict[str, Any]:
             saved = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
             if isinstance(saved.get("project"), dict):
                 cfg["project"].update(saved["project"])
+                env_bucket = (os.environ.get("GCS_BUCKET") or "").strip()
+                if not str(cfg["project"].get("gcs_bucket") or "").strip() and env_bucket:
+                    cfg["project"]["gcs_bucket"] = env_bucket
+                env_proj = (os.environ.get("GOOGLE_CLOUD_PROJECT") or "").strip()
+                if env_proj and str(cfg["project"].get("project_id") or "").strip() in ("", "genai-dnb-demo"):
+                    cfg["project"]["project_id"] = env_proj
             if isinstance(saved.get("tab_models"), dict):
                 for k, v in saved["tab_models"].items():
                     if k in cfg["tab_models"] and isinstance(v, dict):

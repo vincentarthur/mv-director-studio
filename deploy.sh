@@ -18,8 +18,8 @@ REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
 SERVICE_NAME="${SERVICE_NAME:-mv-director-studio-v2}"
 SA_NAME="${SA_NAME:-mv-director-studio-sa}"
 SA_EMAIL="${SA_EMAIL:-${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com}"
-# 可选：若将素材与持久化数据放在 GCS Bucket，填写 Bucket 名称（GCS_BUCKET）
-GCS_BUCKET="${GCS_BUCKET:-${GCS_BUCKET:-}}"
+# 可选：若将素材与持久化数据放在 GCS Bucket，填写 Bucket 名称
+GCS_BUCKET="${GCS_BUCKET:-}"
 # 可选：零明文 SHA-256 门禁模式（支持交互式隐藏输入 PROMPT_PASSCODE=true 或直接传 SHA-256 哈希）
 PROMPT_PASSCODE="${PROMPT_PASSCODE:-false}"
 PASSCODE_SHA256="${ACCESS_PASSCODE_SHA256:-}"
@@ -119,9 +119,9 @@ if [[ -n "${GCS_BUCKET}" ]]; then
   echo "☁️ 启用 Cloud Run 原生 GCS FUSE 持久化挂载: gs://${GCS_BUCKET}"
   DEPLOY_ARGS+=(
     --add-volume "name=eval-data,type=cloud-storage,bucket=${GCS_BUCKET}"
-    --add-volume-mount "volume=eval-data,mount-path=/app/argon_eval_data"
+    --add-volume-mount "volume=eval-data,mount-path=/app/data"
   )
-  ENV_VARS="${ENV_VARS},GCS_BUCKET=${GCS_BUCKET},EVAL_DATA_DIR=/app/argon_eval_data"
+  ENV_VARS="${ENV_VARS},GCS_BUCKET=${GCS_BUCKET},EVAL_DATA_DIR=/app/data"
 fi
 
 DEPLOY_ARGS+=(--set-env-vars "${ENV_VARS}")

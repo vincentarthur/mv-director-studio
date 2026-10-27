@@ -799,8 +799,8 @@
             <input type="text" id="cfg-gcs-bucket" placeholder="如 my-mv-eval-bucket (无GCS可留空)" />
           </div>
           <div>
-            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">GCS 对象路径前缀 (Prefix)</label>
-            <input type="text" id="cfg-gcs-prefix" placeholder="默认 argon_eval_data" />
+            <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">GCS 对象路径前缀 (Prefix，根路径留空)</label>
+            <input type="text" id="cfg-gcs-prefix" placeholder="留空表示 Bucket 根目录" />
           </div>
           <div>
             <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Google Drive 样本集 Folder ID (非GCS自动回退源)</label>
@@ -1076,7 +1076,7 @@
       if (document.getElementById('cfg-storage-mode')) {
         document.getElementById('cfg-storage-mode').value = proj.asset_storage_mode || 'auto';
         document.getElementById('cfg-gcs-bucket').value = proj.gcs_bucket || '';
-        document.getElementById('cfg-gcs-prefix').value = proj.gcs_prefix || 'argon_eval_data';
+        document.getElementById('cfg-gcs-prefix').value = proj.gcs_prefix || '';
         document.getElementById('cfg-gdrive-folder').value = proj.gdrive_folder_id || '1MYa7S2ZjTXcOHrK3lDBUzhCVUUHxyp9Z';
       }
 
@@ -1166,7 +1166,7 @@
         api_key: document.getElementById('cfg-api-key').value.trim(),
         asset_storage_mode: document.getElementById('cfg-storage-mode') ? document.getElementById('cfg-storage-mode').value : 'auto',
         gcs_bucket: document.getElementById('cfg-gcs-bucket') ? document.getElementById('cfg-gcs-bucket').value.trim() : '',
-        gcs_prefix: document.getElementById('cfg-gcs-prefix') ? document.getElementById('cfg-gcs-prefix').value.trim() || 'argon_eval_data' : 'argon_eval_data',
+        gcs_prefix: document.getElementById('cfg-gcs-prefix') ? document.getElementById('cfg-gcs-prefix').value.trim() : '',
         gdrive_folder_id: document.getElementById('cfg-gdrive-folder') ? document.getElementById('cfg-gdrive-folder').value.trim() : '1MYa7S2ZjTXcOHrK3lDBUzhCVUUHxyp9Z'
       };
       const tab_models = {};
@@ -2140,7 +2140,7 @@
               </div>
               <div style="font-size:11px; color:var(--muted); margin-top:4px;">
                 GCS Prefix: <code>${eff.gcs_prefix || '(空)'}</code><br/>
-                ENV ARGON_GCS_BUCKET: <code>${envVars.ARGON_GCS_BUCKET || '(未设置)'}</code><br/>
+                ENV GCS_BUCKET: <code>${envVars.GCS_BUCKET || '(未设置)'}</code><br/>
                 Cloud Run Revision: <code>${envVars.K_REVISION || '本地进程'}</code>
               </div>
             </div>
@@ -2148,7 +2148,7 @@
               <div class="metric-label">🎵 本地/挂载卷已就绪音频样本数</div>
               <div class="metric-val" style="color:${eff.ready_audio_samples_count === '10/10' ? '#34d399' : '#fbbf24'};">${eff.ready_audio_samples_count || '0/10'}</div>
               <div style="font-size:11px; color:var(--muted); margin-top:4px;">
-                若在 Cloud Run 使用 GCS，请确保部署时传入 <code>ARGON_GCS_BUCKET=你的桶名</code> 或在配置中心填写 GCS Bucket 名称。
+                若在 Cloud Run 使用 GCS，请确保部署时传入 <code>GCS_BUCKET=你的桶名</code> 或在配置中心填写 GCS Bucket 名称。
               </div>
             </div>
           </div>

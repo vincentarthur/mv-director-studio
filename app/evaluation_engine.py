@@ -33,6 +33,7 @@ from app.config import (
     _set_thread_log_ctx,
     load_platform_config,
     log_runtime,
+    persist_batch_job_state,
 )
 from app.storage import (
     TRACK_FILES,
@@ -40,6 +41,7 @@ from app.storage import (
     build_media_part_for_gemini,
     call_gemini_model,
     ensure_sample_files_synced,
+    guess_media_mime_type,
     load_manifest,
     load_track_store,
     resolve_sample_asset,
@@ -60,13 +62,14 @@ def build_multimodal_parts_for_sample(
     img_specs = spec.get("images", [])
     img_paths = [img["filename"] for img in img_specs]
     user_prompt = spec.get("prompt_text", "").strip()
+    audio_fn = spec.get("audio_filename") or "input_audio_01.mp3"
 
     parts: list[dict[str, Any]] = [
         build_media_part_for_gemini(
             sample_id,
-            "input_audio_01.mp3",
-            "audio/mpeg",
-            file_id=files_map.get("input_audio_01.mp3", ""),
+            audio_fn,
+            guess_media_mime_type(audio_fn, "audio/mpeg"),
+            file_id=files_map.get(audio_fn) or files_map.get("input_audio_01.mp3", ""),
         )
     ]
     for img in img_specs:
@@ -75,7 +78,7 @@ def build_multimodal_parts_for_sample(
             build_media_part_for_gemini(
                 sample_id,
                 fn,
-                "image/jpeg",
+                guess_media_mime_type(fn, "image/jpeg"),
                 file_id=img.get("file_id") or files_map.get(fn, ""),
             )
         )
@@ -111,14 +114,15 @@ def evaluate_output_against_mv_rubric(
     prompts_cfg = cfg["prompts"]
 
     sid = sample_spec["sample_id"]
-    sdir = SAMPLES_DIR / sid
+    files_map = sample_spec.get("files", {})
     dur_sec = sample_spec.get("audio_meta", {}).get("duration_sec", 180.0)
     dur_str = sample_spec.get("audio_meta", {}).get("duration_str", "03:00")
-    img_paths = [
-        sdir / img["filename"]
-        for img in sample_spec.get("images", [])
-        if (sdir / img["filename"]).exists()
-    ]
+    img_paths: list[Path] = []
+    for img in sample_spec.get("images", []):
+        fn = img["filename"]
+        resolved_img = resolve_sample_asset(sid, fn, file_id=img.get("file_id") or files_map.get(fn, ""))
+        if resolved_img and resolved_img.exists():
+            img_paths.append(resolved_img)
     user_prompt = sample_spec.get("prompt_text", "").strip()
     user_prompt_display = user_prompt if user_prompt else "无（Zero-Prompt 模式）"
 
@@ -139,7 +143,7 @@ def evaluate_output_against_mv_rubric(
 
     j_parts: list[dict[str, Any]] = []
     for ip in img_paths:
-        j_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": str(ip)}})
+        j_parts.append({"inline_data": {"mime_type": guess_media_mime_type(ip.name, "image/jpeg"), "data": str(ip)}})
     j_parts.append({"text": judge_prompt})
 
     score_data, score_meta = call_gemini_model(
@@ -184,12 +188,13 @@ def build_storyline_parts_for_sample(
     protagonist_desc = f"双人主角 ({len(img_paths)}张参考图)" if len(img_paths) > 1 else "单人主角 (1张参考图)"
     user_prompt_str = user_prompt if user_prompt else "【无用户提示词 (Zero-Prompt 模式) — 请完全基于歌曲旋律、歌词与人物参考图气质自主创作最佳 MV Storyline】"
 
+    audio_fn = spec.get("audio_filename") or "input_audio_01.mp3"
     parts: list[dict[str, Any]] = [
         build_media_part_for_gemini(
             sample_id,
-            "input_audio_01.mp3",
-            "audio/mpeg",
-            file_id=files_map.get("input_audio_01.mp3", ""),
+            audio_fn,
+            guess_media_mime_type(audio_fn, "audio/mpeg"),
+            file_id=files_map.get(audio_fn) or files_map.get("input_audio_01.mp3", ""),
         )
     ]
     for img in img_specs:
@@ -198,7 +203,7 @@ def build_storyline_parts_for_sample(
             build_media_part_for_gemini(
                 sample_id,
                 fn,
-                "image/jpeg",
+                guess_media_mime_type(fn, "image/jpeg"),
                 file_id=img.get("file_id") or files_map.get(fn, ""),
             )
         )
@@ -233,14 +238,15 @@ def evaluate_storyline_against_song(
     prompts_cfg = cfg["prompts"]
 
     sid = sample_spec["sample_id"]
-    sdir = SAMPLES_DIR / sid
+    files_map = sample_spec.get("files", {})
     dur_sec = sample_spec.get("audio_meta", {}).get("duration_sec", 180.0)
     dur_str = sample_spec.get("audio_meta", {}).get("duration_str", "03:00")
-    img_paths = [
-        sdir / img["filename"]
-        for img in sample_spec.get("images", [])
-        if (sdir / img["filename"]).exists()
-    ]
+    img_paths: list[Path] = []
+    for img in sample_spec.get("images", []):
+        fn = img["filename"]
+        resolved_img = resolve_sample_asset(sid, fn, file_id=img.get("file_id") or files_map.get(fn, ""))
+        if resolved_img and resolved_img.exists():
+            img_paths.append(resolved_img)
     user_prompt = sample_spec.get("prompt_text", "").strip()
     user_prompt_display = user_prompt if user_prompt else "无（Zero-Prompt 模式）"
 
@@ -260,11 +266,12 @@ def evaluate_storyline_against_song(
     )
 
     judge_parts: list[dict[str, Any]] = []
-    audio_path = sdir / "input_audio_01.mp3"
-    if audio_path.exists():
-        judge_parts.append({"inline_data": {"mime_type": "audio/mpeg", "data": str(audio_path)}})
+    audio_fn = sample_spec.get("audio_filename") or "input_audio_01.mp3"
+    audio_path = resolve_sample_asset(sid, audio_fn, file_id=files_map.get(audio_fn) or files_map.get("input_audio_01.mp3", ""))
+    if audio_path and audio_path.exists():
+        judge_parts.append({"inline_data": {"mime_type": guess_media_mime_type(audio_path.name, "audio/mpeg"), "data": str(audio_path)}})
     for ip in img_paths:
-        judge_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": str(ip)}})
+        judge_parts.append({"inline_data": {"mime_type": guess_media_mime_type(ip.name, "image/jpeg"), "data": str(ip)}})
     judge_parts.append({"text": judge_text})
 
     score_data, score_meta = call_gemini_model(
@@ -466,6 +473,7 @@ def start_parallel_track_job(
             "per_sample": per_sample_status,
             "logs": [],
         }
+    persist_batch_job_state(job_id)
 
     log_runtime(
         "INFO",
@@ -518,6 +526,7 @@ def start_parallel_track_job(
                     _BATCH_JOBS[job_id]["current_step"] = (
                         f"已处理 {done}/{tot} 组样本 (✅ 成功: {succ} | ❌ 失败: {fail}) | 最新完成 Sample {sid} (得分: {sc})"
                     )
+                persist_batch_job_state(job_id)
                 log_runtime(
                     "INFO",
                     "SAMPLE_DONE",
@@ -563,6 +572,7 @@ def start_parallel_track_job(
                     _BATCH_JOBS[job_id]["current_step"] = (
                         f"已处理 {done}/{tot} 组样本 (✅ 成功: {succ} | ❌ 失败: {fail}) | ❌ Sample {sid} [{err_stage}] {type(exc).__name__}: {exc}"
                     )
+                persist_batch_job_state(job_id)
                 log_runtime(
                     "ERROR",
                     f"SAMPLE_FAIL:{err_stage}",
@@ -589,6 +599,7 @@ def start_parallel_track_job(
                 _BATCH_JOBS[job_id]["current_step"] = (
                     f"⚠️ {track_label} 执行完毕：✅ 成功 {succ}/{tot} 组，❌ 失败 {fail}/{tot} 组（请查看下方实时日志框或点击失败样本查看完整诊断堆栈）"
                 )
+        persist_batch_job_state(job_id)
         log_runtime(
             "INFO" if fail == 0 else "WARNING",
             "BATCH_FINISH",
